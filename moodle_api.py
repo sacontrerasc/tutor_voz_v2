@@ -1,42 +1,3 @@
-# moodle_api.py
-import os
-import requests
-
-# Leer variables desde entorno de Heroku o local
-MOODLE_URL = os.getenv("moodle_url")
-MOODLE_TOKEN = os.getenv("moodle_token")
-
-if not MOODLE_URL or not MOODLE_TOKEN:
-    raise ValueError("❌ Las variables de entorno 'moodle_url' o 'moodle_token' no están definidas.")
-
-# 🔧 Función base para llamar cualquier función de Moodle
-def call_moodle_function(function_name, params=None):
-    if params is None:
-        params = {}
-    base_params = {
-        "wstoken": MOODLE_TOKEN,
-        "moodlewsrestformat": "json",
-        "wsfunction": function_name,
-    }
-    all_params = {**base_params, **params}
-    response = requests.get(MOODLE_URL, params=all_params)
-
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise Exception(f"🔴 Error {response.status_code} al llamar a Moodle: {response.text}")
-
-# 📘 Obtener todos los títulos de cursos
-def get_all_course_titles():
-    try:
-        cursos = call_moodle_function("core_course_get_courses")
-        if not cursos:
-            return "No se encontraron cursos disponibles."
-        return "\n".join(f"- {curso['fullname']}" for curso in cursos)
-    except Exception as e:
-        return f"⚠️ Error al obtener los títulos de los cursos: {e}"
-
-# 📚 Obtener todos los contenidos de los cursos (incluso vacíos o sin descripción)
 def get_all_course_contents():
     try:
         cursos = call_moodle_function("core_course_get_courses")
@@ -46,5 +7,33 @@ def get_all_course_contents():
     all_contents = []
 
     for curso in cursos:
-        course_id = curso.get
+        course_id = curso.get("id")
+        course_name = curso.get("fullname", "Sin nombre")
+        try:
+            secciones = call_moodle_function("core_course_get_contents", {"courseid": course_id})
+            for seccion in secciones:
+                nombre_sec = seccion.get("name", "")
+                for modulo in seccion.get("modules", []):
+                    nombre_modulo = modulo.get("name", "")
+                    tipo = modulo.get("modname", "tipo desconocido")
+                    descripcion = modulo.get("description", "")
+                    archivo_url = None
 
+                    # Si el módulo tiene archivos o enlaces
+                    contents = modulo.get("contents", [])
+                    for c in contents:
+                        if c.get("fileurl"):
+                            archivo_url = c["fileurl"].split('?')[0]
+                            break
+
+                    resumen = f"[{course_name}] {nombre_sec} - {nombre_modulo} ({tipo})"
+                    if descripcion:
+                        resumen += f": {descripcion}"
+                    if archivo_url:
+                        resumen += f" ➜ Recurso: {archivo_url}"
+
+                    all_contents.append(resumen)
+        except Exception as e:
+            all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
+
+    return "\n".join(all_contents) if all_contents else "No se encontró contenido detallado desde Moodle."
