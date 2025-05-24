@@ -58,18 +58,8 @@ initialize_session_state()
 
 # Micrófono flotante
 footer_container = st.container()
-with st.container():
-    st.markdown(
-        """
-        <div style='display: flex; justify-content: center; margin-top: 10px;'>
-            <div id='mic-button'>
-                <!-- Aquí se inyectará el botón real -->
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    audio_bytes = audio_recorder(text=None, key="mic")  # el key evita conflictos
+with footer_container:
+    audio_bytes = audio_recorder(text=None)
 
 # Mostrar historial del chat
 for message in st.session_state.messages:
