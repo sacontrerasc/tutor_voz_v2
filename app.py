@@ -55,7 +55,8 @@ if st.session_state.messages[-1]["role"] != "assistant":
                     contenidos = get_all_course_contents()
                     st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
                 except Exception as e:
-                    st.session_state.moodle_context = "No se pudo cargar el contenido desde Moodle."
+                    st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle.\n\nError: {str(e)}"
+                    st.error(f"⚠️ Error detectado: {e}")
 
             # Mostrar contexto cargado para depuración
             with st.expander("📚 Ver contexto cargado desde Moodle"):
@@ -72,7 +73,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 )
             }
 
-            # Usar solo últimos mensajes para no saturar de tokens
+            # Usar solo últimos mensajes para evitar sobrecarga
             mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
             final_response = get_answer(mensajes_ajustados)
 
@@ -86,4 +87,3 @@ if st.session_state.messages[-1]["role"] != "assistant":
 
 # Flotar el micrófono en el fondo
 footer_container.float("bottom: 0rem;")
-

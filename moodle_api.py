@@ -1,12 +1,13 @@
 # moodle_api.py
 import os
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
-
+# Leer variables desde entorno de Heroku o local
 MOODLE_URL = os.getenv("moodle_url")
 MOODLE_TOKEN = os.getenv("moodle_token")
+
+if not MOODLE_URL or not MOODLE_TOKEN:
+    raise ValueError("❌ Las variables de entorno 'moodle_url' o 'moodle_token' no están definidas.")
 
 # 🔧 Función base para llamar cualquier función de Moodle
 def call_moodle_function(function_name, params=None):
@@ -19,39 +20,45 @@ def call_moodle_function(function_name, params=None):
     }
     all_params = {**base_params, **params}
     response = requests.get(MOODLE_URL, params=all_params)
+
     if response.status_code == 200:
         return response.json()
     else:
-        raise Exception(f"Error {response.status_code}: {response.text}")
+        raise Exception(f"🔴 Error {response.status_code} al llamar a Moodle: {response.text}")
 
-# 📘 Cargar títulos de TODOS los cursos (solo nombres)
+# 📘 Obtener todos los títulos de cursos
 def get_all_course_titles():
-    cursos = call_moodle_function("core_course_get_courses")
-    if not cursos:
-        return "No se encontraron cursos disponibles."
-    lista = "\n".join(f"- {curso['fullname']}" for curso in cursos)
-    return f"Actualmente los cursos disponibles son:\n{lista}"
+    try:
+        cursos = call_moodle_function("core_course_get_courses")
+        if not cursos:
+            return "No se encontraron cursos disponibles."
+        return "\n".join(f"- {curso['fullname']}" for curso in cursos)
+    except Exception as e:
+        return f"⚠️ Error al obtener los títulos de los cursos: {e}"
 
-# 📚 Cargar contenidos de TODOS los cursos
+# 📚 Obtener todos los contenidos de los cursos
 def get_all_course_contents():
-    courses = call_moodle_function("core_course_get_courses")
+    try:
+        cursos = call_moodle_function("core_course_get_courses")
+    except Exception as e:
+        return f"⚠️ Error al obtener la lista de cursos: {e}"
 
     all_contents = []
-    for course in courses:
-        course_id = course["id"]
-        course_name = course["fullname"]
-        try:
-            contents = call_moodle_function("core_course_get_contents", {
-                "courseid": course_id
-            })
-            for section in contents:
-                section_name = section.get("name", "")
-                for mod in section.get("modules", []):
-                    mod_name = mod.get("name", "")
-                    summary = mod.get("description", "")
-                    if summary:
-                        all_contents.append(f"[{course_name}] {section_name} - {mod_name}: {summary}")
-        except:
-            continue
 
-    return "\n".join(all_contents)
+    for curso in cursos:
+        course_id = curso.get("id")
+        course_name = curso.get("fullname", "Sin nombre")
+        try:
+            secciones = call_moodle_function("core_course_get_contents", {"courseid": course_id})
+            for seccion in secciones:
+                nombre_sec = seccion.get("name", "")
+                for modulo in seccion.get("modules", []):
+                    nombre_modulo = modulo.get("name", "")
+                    descripcion = modulo.get("description", "")
+                    if descripcion:
+                        all_contents.append(f"[{course_name}] {nombre_sec} - {nombre_modulo}: {descripcion}")
+        except Exception as e:
+            all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
+
+    return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
+
