@@ -8,6 +8,7 @@ load_dotenv()
 MOODLE_URL = os.getenv("moodle_url")
 MOODLE_TOKEN = os.getenv("moodle_token")
 
+# 🔧 Función base para llamar cualquier función de Moodle
 def call_moodle_function(function_name, params=None):
     if params is None:
         params = {}
@@ -23,7 +24,15 @@ def call_moodle_function(function_name, params=None):
     else:
         raise Exception(f"Error {response.status_code}: {response.text}")
 
-# 🔹 Cargar contenidos de TODOS los cursos
+# 📘 Cargar títulos de TODOS los cursos (solo nombres)
+def get_all_course_titles():
+    cursos = call_moodle_function("core_course_get_courses")
+    if not cursos:
+        return "No se encontraron cursos disponibles."
+    lista = "\n".join(f"- {curso['fullname']}" for curso in cursos)
+    return f"Actualmente los cursos disponibles son:\n{lista}"
+
+# 📚 Cargar contenidos de TODOS los cursos
 def get_all_course_contents():
     courses = call_moodle_function("core_course_get_courses")
 

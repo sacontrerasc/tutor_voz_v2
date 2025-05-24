@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
-from moodle_api import get_all_course_contents
+from moodle_api import get_all_course_titles, get_all_course_contents
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
 
@@ -51,7 +51,9 @@ if st.session_state.messages[-1]["role"] != "assistant":
             # Cargar contexto Moodle solo una vez
             if not st.session_state.moodle_context:
                 try:
-                    st.session_state.moodle_context = get_all_course_contents()
+                    titulos = get_all_course_titles()
+                    contenidos = get_all_course_contents()
+                    st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
                 except Exception as e:
                     st.session_state.moodle_context = "No se pudo cargar el contenido desde Moodle."
 
