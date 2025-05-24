@@ -30,7 +30,7 @@ st.markdown("""
         Tutor de Voz IA CUN
     </h1>
     <div style='text-align: center; margin-bottom: 20px;'>
-        <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='200' alt='Logo CUN'/>
+        <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='160' alt='Logo CUN'/>
     </div>
 """, unsafe_allow_html=True)
 
