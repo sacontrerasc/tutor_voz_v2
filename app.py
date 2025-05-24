@@ -8,11 +8,18 @@ from streamlit_float import *
 # Inicializa visuales flotantes
 float_init()
 
-# Estilo y encabezado
+# Estilo global: fondo, burbujas, imagen, botón
 st.markdown("""
     <style>
+    /* Oculta encabezado */
     header {visibility: hidden;}
-    
+
+    /* Fondo general oscuro */
+    [data-testid="stAppViewContainer"] {
+        background-color: #080D18;
+    }
+
+    /* Burbujas de chat */
     .chat-bubble {
         padding: 14px 20px;
         border-radius: 14px;
@@ -24,28 +31,67 @@ st.markdown("""
     }
 
     .assistant-bubble {
-        background: linear-gradient(to right, #0089FF, #3435A1); /* Degradado de #0089FF a #3435A1 */;
+        background: linear-gradient(to right, #0089FF, #3435A1);
         text-align: left;
         margin-right: auto;
         border-top-left-radius: 0;
     }
 
     .user-bubble {
-        background: linear-gradient(to right, #0D192E, #0A2332); /* Degradado de #0D192E a #0A2332 */;
+        background: linear-gradient(to right, #0D192E, #0A2332);
         text-align: right;
         margin-left: auto;
         border-top-right-radius: 0;
     }
+
+    /* Título */
+    h1 {
+        text-align: center;
+        color: #0089FF;
+        font-family: "Segoe UI", sans-serif;
+        margin-top: 10px;
+    }
+
+    /* Imagen centrada */
+    .avatar-img {
+        display: block;
+        margin: 0 auto 20px auto;
+        width: 160px;
+    }
+
+    /* Botón de micrófono centrado y fijo */
+    div[data-testid="stFloat"] {
+        position: fixed !important;
+        bottom: 30px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 9999 !important;
+    }
+
+    /* Estilo visual del botón */
+    div[data-testid="stAudioRecorder"] button {
+        background: linear-gradient(135deg, #0089FF, #3435A1) !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 65px !important;
+        height: 65px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Oculta texto 'Click to record' */
+    div[data-testid="stAudioRecorder"] span {
+        display: none !important;
+    }
     </style>
 
-    <h1 style='text-align: center; color: #0089FF; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
-        Tutor de Voz IA CUN
-    </h1>
-    <div style='text-align: center; margin-bottom: 20px;'>
-        <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='160' alt='Logo CUN'/>
-    </div>
+    <h1>Tutor de Voz IA CUN</h1>
+    <img class="avatar-img" src="https://i.ibb.co/43wVB5D/Cunia.png" alt="Logo CUN">
 """, unsafe_allow_html=True)
 
+# Estado de la sesión
 def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -56,10 +102,11 @@ def initialize_session_state():
 
 initialize_session_state()
 
-# Micrófono flotante
+# Micrófono centrado y fijo
 footer_container = st.container()
 with footer_container:
     audio_bytes = audio_recorder(text=None)
+footer_container.float("bottom: 0rem;")
 
 # Mostrar historial del chat
 for message in st.session_state.messages:
@@ -123,6 +170,3 @@ if st.session_state.messages[-1]["role"] != "assistant":
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
-
-# Micrófono fijo
-footer_container.float("bottom: 0rem;")
