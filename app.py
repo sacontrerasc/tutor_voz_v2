@@ -86,9 +86,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
-            with st.expander("📚 Ver contexto cargado desde Moodle"):
-                st.text(st.session_state.moodle_context[:1000])
-
             system_intro = {
                 "role": "system",
                 "content": (
