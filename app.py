@@ -31,7 +31,7 @@ st.markdown("""
     }
 
     .user-bubble {
-        background-color: #0A2332;
+        background: linear-gradient(to right, #0D192E, #0A2332); /* Degradado de #0D192E a #0A2332 */;
         text-align: right;
         margin-left: auto;
         border-top-right-radius: 0;
@@ -42,7 +42,7 @@ st.markdown("""
         Tutor de Voz IA CUN
     </h1>
     <div style='text-align: center; margin-bottom: 20px;'>
-        <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='160' alt='Logo CUN'/>
+        <img src='https://i.ibb.co/JFFPnQYk/Tutor-circulo-ilustracion-transp-1.gif' width='160' alt='Logo CUN'/>
     </div>
 """, unsafe_allow_html=True)
 
