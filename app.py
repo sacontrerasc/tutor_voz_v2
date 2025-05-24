@@ -8,7 +8,7 @@ from streamlit_float import *
 # Inicializa visuales flotantes
 float_init()
 
-# Oculta encabezado y define título
+# Oculta encabezado, define título y estilos
 st.markdown("""
     <style>
     header {visibility: hidden;}
@@ -29,6 +29,13 @@ st.markdown("""
     <h1 style='text-align: center; color: #0089FF; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
         Tutor de Voz IA CUN
     </h1>
+""", unsafe_allow_html=True)
+
+# Mostrar imagen centrada debajo del título
+st.markdown("""
+    <div style='text-align: center;'>
+        <img src='assets/Cunia.png' width='200'/>
+    </div>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
