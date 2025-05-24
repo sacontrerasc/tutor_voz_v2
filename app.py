@@ -18,7 +18,12 @@ def initialize_session_state():
 
 initialize_session_state()
 
-st.title("Tutor de Voz IA CUN")
+# Título personalizado centrado y con color
+st.markdown("""
+    <h1 style='text-align: center; color: #3435A1; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
+        Tutor de Voz IA CUN
+    </h1>
+""", unsafe_allow_html=True)
 
 # Micrófono flotante
 footer_container = st.container()
@@ -48,7 +53,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando 🤖..."):
 
-            # Cargar contexto desde Moodle solo una vez
             if not st.session_state.moodle_context:
                 try:
                     titulos = get_all_course_titles()
@@ -57,11 +61,9 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
-            # Mostrar el contexto para verificación (opcional)
             with st.expander("📚 Ver contexto cargado desde Moodle"):
                 st.text(st.session_state.moodle_context[:1000])
 
-            # Introducción del sistema para la IA
             system_intro = {
                 "role": "system",
                 "content": (
@@ -74,7 +76,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
             mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
             final_response = get_answer(mensajes_ajustados)
 
-        # Reproducir audio generado por la IA
         with st.spinner("Generando respuesta en audio..."):
             audio_file = text_to_speech(final_response)
             autoplay_audio(audio_file)
