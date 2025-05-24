@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
-from moodle_api import get_user_courses_by_email, get_all_course_contents_by_email
+from moodle_api import get_all_course_contents
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
 
@@ -11,30 +11,21 @@ float_init()
 def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "¿Cómo puedo ayudarte hoy?"}
+            {"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}
         ]
-    if "user_email" not in st.session_state:
-        st.session_state.user_email = ""
+    if "moodle_context" not in st.session_state:
+        st.session_state.moodle_context = ""
 
 initialize_session_state()
 
 st.title("Tutor de Voz IA CUN")
-
-# Captura automática desde URL si se pasa por ?email=
-query_params = st.experimental_get_query_params()
-if "email" in query_params and not st.session_state.user_email:
-    st.session_state.user_email = query_params["email"][0]
-
-# Campo editable por si no llega desde la URL
-if not st.session_state.user_email:
-    st.text_input("Ingresa tu correo institucional CUN:", key="user_email")
 
 # Micrófono en el footer
 footer_container = st.container()
 with footer_container:
     audio_bytes = audio_recorder()
 
-# Mostrar el historial del chat
+# Mostrar historial del chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
@@ -54,29 +45,22 @@ if audio_bytes:
 
 # Procesar si el último mensaje fue del usuario
 if st.session_state.messages[-1]["role"] != "assistant":
-    last_user_message = st.session_state.messages[-1]["content"].lower()
     with st.chat_message("assistant"):
         with st.spinner("Pensando🤔..."):
 
-            # Si el usuario pregunta por sus cursos
-            if (
-                "qué cursos tengo" in last_user_message
-                or "estoy inscrito" in last_user_message
-            ) and st.session_state.user_email:
-                final_response = get_user_courses_by_email(st.session_state.user_email)
+            # Cargar contexto Moodle solo una vez
+            if not st.session_state.moodle_context:
+                try:
+                    st.session_state.moodle_context = get_all_course_contents()
+                except Exception as e:
+                    st.session_state.moodle_context = "No se pudo cargar el contenido desde Moodle."
 
-            # Si se pregunta algo general y hay correo → IA con contexto
-            elif st.session_state.user_email:
-                moodle_context = get_all_course_contents_by_email(st.session_state.user_email)
-                system_intro = {
-                    "role": "system",
-                    "content": f"Eres el Tutor IA de la CUN. Usa los siguientes contenidos reales de Moodle para responder preguntas:\n\n{moodle_context[:5000]}"
-                }
-                final_response = get_answer([system_intro] + st.session_state.messages)
-            
-            # Si no hay correo, responde sin contexto
-            else:
-                final_response = get_answer(st.session_state.messages)
+            system_intro = {
+                "role": "system",
+                "content": f"Eres el Tutor IA de la CUN. Usa los siguientes contenidos reales de Moodle para responder preguntas:\n\n{st.session_state.moodle_context[:5000]}"
+            }
+
+            final_response = get_answer([system_intro] + st.session_state.messages)
 
         with st.spinner("Generando respuesta del audio..."):
             audio_file = text_to_speech(final_response)
