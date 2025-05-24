@@ -36,7 +36,7 @@ def get_all_course_titles():
     except Exception as e:
         return f"⚠️ Error al obtener los títulos de los cursos: {e}"
 
-# 📚 Obtener todos los contenidos de los cursos
+# 📚 Obtener todos los contenidos de los cursos (incluso vacíos o sin descripción)
 def get_all_course_contents():
     try:
         cursos = call_moodle_function("core_course_get_courses")
@@ -46,19 +46,5 @@ def get_all_course_contents():
     all_contents = []
 
     for curso in cursos:
-        course_id = curso.get("id")
-        course_name = curso.get("fullname", "Sin nombre")
-        try:
-            secciones = call_moodle_function("core_course_get_contents", {"courseid": course_id})
-            for seccion in secciones:
-                nombre_sec = seccion.get("name", "")
-                for modulo in seccion.get("modules", []):
-                    nombre_modulo = modulo.get("name", "")
-                    descripcion = modulo.get("description", "")
-                    if descripcion:
-                        all_contents.append(f"[{course_name}] {nombre_sec} - {nombre_modulo}: {descripcion}")
-        except Exception as e:
-            all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
-
-    return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
+        course_id = curso.ge_
 
