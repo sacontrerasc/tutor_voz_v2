@@ -8,15 +8,10 @@ from streamlit_float import *
 # Inicializa visuales flotantes
 float_init()
 
-# Estilo, encabezado, fondo y componentes visuales
+# Estilo, encabezado y componentes visuales
 st.markdown("""
     <style>
     header {visibility: hidden;}
-
-    /* Fondo de toda la app */
-    [data-testid="stAppViewContainer"] {
-        background-color: #080D18;
-    }
 
     .chat-bubble {
         padding: 14px 20px;
@@ -54,7 +49,6 @@ st.markdown("""
         color: #0089FF;
     }
 
-    /* Contenedor micrófono fondo rojo */
     div[data-testid="stAudioRecorder"] {
         background-color: red !important;
         border-radius: 50% !important;
@@ -64,7 +58,6 @@ st.markdown("""
         align-items: center;
     }
 
-    /* Botón del micrófono */
     div[data-testid="stAudioRecorder"] button {
         background: linear-gradient(135deg, #0089FF, #3435A1) !important;
         border: none !important;
@@ -77,7 +70,6 @@ st.markdown("""
         justify-content: center;
     }
 
-    /* Oculta texto "Click to record" */
     div[data-testid="stAudioRecorder"] span {
         display: none !important;
     }
@@ -172,6 +164,3 @@ if st.session_state.messages[-1]["role"] != "assistant":
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
-
-# Micrófono fijo
-footer_container.float("bottom: 0rem;")
