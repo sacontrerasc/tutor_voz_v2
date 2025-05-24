@@ -58,45 +58,8 @@ initialize_session_state()
 
 # Micrófono flotante
 footer_container = st.container()
-with st.container():
-    st.markdown(
-        """
-        <style>
-        /* Estilos para fijar el botón en la parte inferior y centrarlo */
-        #mic-container {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-        }
-
-        /* Opcional: mejora visual del botón */
-        div[data-testid="stAudioRecorder"] button {
-            background: linear-gradient(135deg, #0089FF, #3435A1) !important;
-            border: none !important;
-            border-radius: 50% !important;
-            width: 65px !important;
-            height: 65px !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Oculta texto "Click to record" */
-        div[data-testid="stAudioRecorder"] span {
-            display: none !important;
-        }
-        </style>
-
-        <div id='mic-container'>
-            <div id='mic-button'></div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    audio_bytes = audio_recorder(text=None, key="mic")
+with footer_container:
+    audio_bytes = audio_recorder(text=None)
 
 # Mostrar historial del chat
 for message in st.session_state.messages:
