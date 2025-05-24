@@ -8,6 +8,32 @@ from streamlit_float import *
 # Inicializa visuales flotantes
 float_init()
 
+# CSS para burbujas personalizadas
+st.markdown("""
+<style>
+/* Oculta encabezado Streamlit */
+header {visibility: hidden;}
+
+/* Estilo para respuestas de la IA */
+.stChatMessage.assistant .stMarkdown > div:has(> p):first-child {
+    background-color: #0089FF;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 14px;
+    font-family: "Segoe UI", sans-serif;
+}
+
+/* Estilo para preguntas del usuario */
+.stChatMessage.user .stMarkdown > div:has(> p):first-child {
+    background-color: #0D192E;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 14px;
+    font-family: "Segoe UI", sans-serif;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -18,9 +44,9 @@ def initialize_session_state():
 
 initialize_session_state()
 
-# Título personalizado centrado y con color
+# Título centrado y estilizado
 st.markdown("""
-    <h1 style='text-align: center; color: #3435A1; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
+    <h1 style='text-align: center; color: #0089FF; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
         Tutor de Voz IA CUN
     </h1>
 """, unsafe_allow_html=True)
@@ -84,5 +110,5 @@ if st.session_state.messages[-1]["role"] != "assistant":
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
 
-# Micrófono siempre flotando abajo
+# Micrófono flotante fijo
 footer_container.float("bottom: 0rem;")
