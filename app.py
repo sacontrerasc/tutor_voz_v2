@@ -8,24 +8,36 @@ from streamlit_float import *
 # Inicializa visuales flotantes
 float_init()
 
-# Encabezado, título e imagen centrada
+# Estilo y encabezado
 st.markdown("""
     <style>
     header {visibility: hidden;}
+    
     .chat-bubble {
         padding: 14px 20px;
         border-radius: 14px;
         color: white;
         font-family: "Segoe UI", sans-serif;
         margin: 8px 0;
+        max-width: 80%;
+        word-wrap: break-word;
     }
+
     .assistant-bubble {
-        background-color: #0089FF;
+        background: linear-gradient(to right, #0089FF, #3435A1); /* Degradado de #0089FF a #3435A1 */;
+        text-align: left;
+        margin-right: auto;
+        border-top-left-radius: 0;
     }
+
     .user-bubble {
         background-color: #0A2332;
+        text-align: right;
+        margin-left: auto;
+        border-top-right-radius: 0;
     }
     </style>
+
     <h1 style='text-align: center; color: #0089FF; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
         Tutor de Voz IA CUN
     </h1>
@@ -76,7 +88,7 @@ if audio_bytes:
                 """, unsafe_allow_html=True)
             os.remove(webm_file_path)
 
-# Procesar respuesta de la IA
+# Procesar respuesta del asistente
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
@@ -112,5 +124,5 @@ if st.session_state.messages[-1]["role"] != "assistant":
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
 
-# Micrófono fijo en parte inferior
+# Micrófono fijo
 footer_container.float("bottom: 0rem;")
