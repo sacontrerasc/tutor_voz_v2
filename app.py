@@ -13,11 +13,7 @@ st.markdown("""
     <style>
     header {visibility: hidden;}
     
-    /* Fondo general */
-    [data-testid="stAppViewContainer"] {
-        background-color: #080D18;
-    }
-
+            
     .chat-bubble {
         padding: 14px 20px;
         border-radius: 14px;
@@ -29,43 +25,17 @@ st.markdown("""
     }
 
     .assistant-bubble {
-        background: linear-gradient(to right, #0089FF, #3435A1);
+        background: linear-gradient(to right, #0089FF, #3435A1); /* Degradado de #0089FF a #3435A1 */;
         text-align: left;
         margin-right: auto;
         border-top-left-radius: 0;
     }
 
     .user-bubble {
-        background: linear-gradient(to right, #0D192E, #0A2332);
+        background: linear-gradient(to right, #0D192E, #0A2332); /* Degradado de #0D192E a #0A2332 */;
         text-align: right;
         margin-left: auto;
         border-top-right-radius: 0;
-    }
-
-    /* Estilo del contenedor del botón del micrófono */
-    div[data-testid="stAudioRecorder"] {
-        background-color: red !important;
-        border-radius: 50% !important;
-        padding: 12px !important;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    div[data-testid="stAudioRecorder"] button {
-        background: linear-gradient(135deg, #0089FF, #3435A1) !important;
-        border: none !important;
-        border-radius: 50% !important;
-        width: 65px !important;
-        height: 65px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    div[data-testid="stAudioRecorder"] span {
-        display: none !important;
     }
     </style>
 
@@ -91,7 +61,6 @@ initialize_session_state()
 footer_container = st.container()
 with footer_container:
     audio_bytes = audio_recorder(text=None)
-footer_container.float("bottom: 0rem;")
 
 # Mostrar historial del chat
 for message in st.session_state.messages:
@@ -155,3 +124,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
+
+# Micrófono fijo
+footer_container.float("bottom: 0rem;")
