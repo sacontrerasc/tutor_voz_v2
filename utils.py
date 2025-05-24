@@ -9,7 +9,7 @@ api_key = os.getenv("openai_api_key")
 client = OpenAI(api_key=api_key)
 
 def get_answer(messages):
-    system_message = [{"role": "system", "content": "Soy tu tutor IA y estoy para ayudarte, qué necesitas hoy?"}]
+    system_message = [{"role": "system", "content": "Chatea con el Tutor de voz de la CUN, qué necesitas hoy?"}]
     messages = system_message + messages
     response = client.chat.completions.create(
         model="gpt-4",
