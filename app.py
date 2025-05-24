@@ -10,14 +10,14 @@ float_init()
 def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Hola, cómo estás el día de hoy?"}
+            {"role": "assistant", "content": "¿Cómo puedo ayudarte hoy?"}
         ]
     # if "audio_initialized" not in st.session_state:
     #     st.session_state.audio_initialized = False
 
 initialize_session_state()
 
-st.title("Tutor de Voz IA 🤖")
+st.title("Tutor de Voz IA CUN")
 
 # Create footer container for the microphone
 footer_container = st.container()
