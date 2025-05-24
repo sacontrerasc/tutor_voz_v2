@@ -8,7 +8,7 @@ from streamlit_float import *
 # Inicializa visuales flotantes
 float_init()
 
-# Oculta encabezado, define título y estilos
+# Encabezado, título e imagen centrada
 st.markdown("""
     <style>
     header {visibility: hidden;}
@@ -29,12 +29,8 @@ st.markdown("""
     <h1 style='text-align: center; color: #0089FF; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
         Tutor de Voz IA CUN
     </h1>
-""", unsafe_allow_html=True)
-
-# Mostrar imagen centrada debajo del título
-st.markdown("""
-    <div style='text-align: center;'>
-        <img src='assets/Cunia.png' width='200'/>
+    <div style='text-align: center; margin-bottom: 20px;'>
+        <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='200' alt='Logo CUN'/>
     </div>
 """, unsafe_allow_html=True)
 
@@ -84,7 +80,6 @@ if audio_bytes:
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
-
             if not st.session_state.moodle_context:
                 try:
                     titulos = get_all_course_titles()
