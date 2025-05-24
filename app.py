@@ -38,12 +38,7 @@ st.markdown("""
     }
     </style>
 
-    <h1 style='text-align: center; font-family: "Segoe UI", sans-serif; margin-top: 10px;
-    background: linear-gradient(to right, #0089FF, #3435A1); /* Este es el degradado */
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: #0089FF; /* Fallback para navegadores que no soporten las propiedades -webkit */
-    '>
+    <h1 style='text-align: center; color: #0089FF; font-family: "Segoe UI", sans-serif; margin-top: 10px;'>
         Tutor de Voz IA CUN
     </h1>
     <div style='text-align: center; margin-bottom: 20px;'>
