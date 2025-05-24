@@ -57,12 +57,24 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 except Exception as e:
                     st.session_state.moodle_context = "No se pudo cargar el contenido desde Moodle."
 
+            # Mostrar contexto cargado para depuración
+            with st.expander("📚 Ver contexto cargado desde Moodle"):
+                st.text(st.session_state.moodle_context[:500])
+
+            # Construir prompt del sistema
             system_intro = {
                 "role": "system",
-                "content": f"Eres el Tutor IA de la CUN. Usa los siguientes contenidos reales de Moodle para responder preguntas:\n\n{st.session_state.moodle_context[:5000]}"
+                "content": (
+                    "Eres el Tutor IA de la CUN. A partir de los siguientes datos extraídos de Moodle, "
+                    "responde cualquier pregunta relacionada con cursos, nombres, temas o contenidos. "
+                    "Aquí está la información disponible:\n\n"
+                    f"{st.session_state.moodle_context[:5000]}"
+                )
             }
 
-            final_response = get_answer([system_intro] + st.session_state.messages)
+            # Usar solo últimos mensajes para no saturar de tokens
+            mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
+            final_response = get_answer(mensajes_ajustados)
 
         with st.spinner("Generando respuesta del audio..."):
             audio_file = text_to_speech(final_response)
@@ -74,3 +86,4 @@ if st.session_state.messages[-1]["role"] != "assistant":
 
 # Flotar el micrófono en el fondo
 footer_container.float("bottom: 0rem;")
+
