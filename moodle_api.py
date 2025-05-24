@@ -46,5 +46,5 @@ def get_all_course_contents():
     all_contents = []
 
     for curso in cursos:
-        course_id = curso.ge_
+        course_id = curso.get
 
