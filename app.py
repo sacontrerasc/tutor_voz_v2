@@ -59,7 +59,7 @@ initialize_session_state()
 # Micrófono flotante
 footer_container = st.container()
 with footer_container:
-    audio_bytes = audio_recorder()
+    audio_bytes = audio_recorder(text=None)
 
 # Mostrar historial del chat
 for message in st.session_state.messages:
