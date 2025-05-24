@@ -20,7 +20,7 @@ st.markdown("""
         margin: 8px 0;
     }
     .assistant-bubble {
-        background-color: #0089FF;
+        background-color: #0089FF, #3435A1;
     }
     .user-bubble {
         background-color: #0A2332;
