@@ -1,19 +1,24 @@
 import streamlit as st
 import os
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
-from moodle_api import get_all_course_titles, get_all_course_contents
+from moodle_api import get_user_courses_by_email
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
 
 # Inicializa visuales flotantes
 float_init()
 
-# Estilo, encabezado y componentes visuales
-st.markdown("""
-    <style>
-    header {visibility: hidden;}
+# Captura el email automáticamente desde la URL del iframe (query params)
+query_params = st.experimental_get_query_params()
+email = query_params.get("email", [None])[0]
 
-    .chat-bubble {
+# Estilo, encabezado y componentes visuales
+st.markdown(f"""
+    <style>
+    header {{visibility: hidden;}}
+    [data-testid="stAppViewContainer"] {{ background-color: #FFFFFF; }}
+
+    .chat-bubble {{
         padding: 14px 20px;
         border-radius: 14px;
         color: white;
@@ -21,44 +26,44 @@ st.markdown("""
         margin: 8px 0;
         max-width: 80%;
         word-wrap: break-word;
-    }
+    }}
 
-    .assistant-bubble {
+    .assistant-bubble {{
         background: linear-gradient(to right, #0089FF, #3435A1);
         text-align: left;
         margin-right: auto;
         border-top-left-radius: 0;
-    }
+    }}
 
-    .user-bubble {
+    .user-bubble {{
         background: linear-gradient(to right, #0D192E, #0A2332);
         text-align: right;
         margin-left: auto;
         border-top-right-radius: 0;
-    }
+    }}
 
-    .title-block {
+    .title-block {{
         text-align: center;
         font-family: "Segoe UI", sans-serif;
         margin-top: 10px;
         margin-bottom: 0;
-    }
+    }}
 
-    .title-block h1 {
+    .title-block h1 {{
         margin: 0;
         color: #0089FF;
-    }
+    }}
 
-    div[data-testid="stAudioRecorder"] {
+    div[data-testid="stAudioRecorder"] {{
         background-color: red !important;
         border-radius: 50% !important;
         padding: 12px !important;
         display: flex;
         justify-content: center;
         align-items: center;
-    }
+    }}
 
-    div[data-testid="stAudioRecorder"] button {
+    div[data-testid="stAudioRecorder"] button {{
         background: linear-gradient(135deg, #0089FF, #3435A1) !important;
         border: none !important;
         border-radius: 50% !important;
@@ -68,12 +73,11 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-    }
+    }}
 
-    div[data-testid="stAudioRecorder"] span {
+    div[data-testid="stAudioRecorder"] span {{
         display: none !important;
-    }
-
+    }}
     </style>
 
     <div class='title-block'>
@@ -85,16 +89,13 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Estado de la sesión
-def initialize_session_state():
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}
-        ]
-    if "moodle_context" not in st.session_state:
-        st.session_state.moodle_context = ""
-
-initialize_session_state()
+# Estado de sesión
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}
+    ]
+if "moodle_context" not in st.session_state:
+    st.session_state.moodle_context = ""
 
 # Micrófono centrado y flotante
 footer_container = st.container()
@@ -129,23 +130,21 @@ if audio_bytes:
                 """, unsafe_allow_html=True)
             os.remove(webm_file_path)
 
-# Procesar respuesta del asistente
+# Respuesta del asistente
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
-            if not st.session_state.moodle_context:
+
+            if not st.session_state.moodle_context and email:
                 try:
-                    titulos = get_all_course_titles()
-                    contenidos = get_all_course_contents()
-                    st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
+                    st.session_state.moodle_context = get_user_courses_by_email(email)
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres el Tutor IA de la CUN. Usa la siguiente información real extraída de Moodle "
-                    "para responder sobre cursos, recursos (PDF, SCORM, enlaces, libros, páginas, etc):\n\n"
+                    "Eres el Tutor IA de la CUN. Usa esta información real de los cursos del usuario para responder:\n\n"
                     f"{st.session_state.moodle_context[:5000]}"
                 )
             }
