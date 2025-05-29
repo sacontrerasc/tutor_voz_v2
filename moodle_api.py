@@ -73,7 +73,7 @@ def get_user_courses_by_email(email):
 
         if not users:
             return "⚠️ No se encontró ningún usuario con ese correo."
-        
+
         user_id = users[0]["id"]
         cursos = call_moodle_function("core_enrol_get_users_courses", {"userid": user_id})
 
@@ -88,3 +88,45 @@ def get_user_courses_by_email(email):
 
     except Exception as e:
         return f"❌ Error al obtener cursos del usuario: {e}"
+
+# 🔹 Contenidos completos de los cursos del usuario por email
+def get_user_course_contents_by_email(email):
+    try:
+        users = call_moodle_function("core_user_get_users", {
+            "criteria[0][key]": "email",
+            "criteria[0][value]": email
+        })
+
+        if not users:
+            return "⚠️ No se encontró ningún usuario con ese correo."
+
+        user_id = users[0]["id"]
+        cursos = call_moodle_function("core_enrol_get_users_courses", {"userid": user_id})
+
+        if not cursos:
+            return "⚠️ No estás matriculado en ningún curso."
+
+        all_contents = []
+
+        for curso in cursos:
+            course_id = curso.get("id")
+            course_name = curso.get("fullname", "Sin nombre")
+            try:
+                secciones = call_moodle_function("core_course_get_contents", {"courseid": course_id})
+                for seccion in secciones:
+                    nombre_sec = seccion.get("name", "")
+                    for modulo in seccion.get("modules", []):
+                        nombre_modulo = modulo.get("name", "")
+                        tipo_modulo = modulo.get("modname", "")
+                        descripcion = modulo.get("description", "")
+                        contenido = f"[{course_name}] {nombre_sec} - {nombre_modulo} ({tipo_modulo})"
+                        if descripcion:
+                            contenido += f": {descripcion}"
+                        all_contents.append(contenido)
+            except Exception as e:
+                all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
+
+        return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
+
+    except Exception as e:
+        return f"❌ Error al obtener contenidos del usuario: {e}
