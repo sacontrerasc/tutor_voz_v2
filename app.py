@@ -5,17 +5,32 @@ from moodle_api import get_all_course_titles, get_user_course_contents_by_email
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
-# --- Configuración (solo API Key de OpenAI si es la única variable de entorno) ---
-# OPENAI_API_KEY se asume que sigue siendo una variable de entorno
-# Puedes añadir una comprobación si es necesaria para OPENAI_API_KEY
-# if not os.environ.get("OPENAI_API_KEY"):
-#     st.error("Error: La variable de entorno OPENAI_API_KEY no está configurada.")
-#     st.stop()
+# Importar Authlib
+from authlib.integrations.requests_client import OAuth2Session
+import urllib.parse # Para manejar URLs
+
+# --- Configuración de OAuth2 desde Variables de Entorno ---
+MOODLE_CLIENT_ID = os.environ.get("MOODLE_CLIENT_ID")
+MOODLE_CLIENT_SECRET = os.environ.get("MOODLE_CLIENT_SECRET")
+MOODLE_AUTHORIZATION_URL = os.environ.get("MOODLE_AUTHORIZATION_URL")
+MOODLE_TOKEN_URL = os.environ.get("MOODLE_TOKEN_URL")
+MOODLE_USERINFO_URL = os.environ.get("MOODLE_USERINFO_URL")
+MOODLE_REDIRECT_URI = os.environ.get("MOODLE_REDIRECT_URI")
+
+# --- Comprobación de configuración esencial ---
+# Se verifica que todas las variables de entorno para OAuth2 estén presentes.
+# Si alguna falta, se muestra un mensaje de error y se detiene la aplicación.
+if not all([MOODLE_CLIENT_ID, MOODLE_CLIENT_SECRET, MOODLE_AUTHORIZATION_URL,
+            MOODLE_TOKEN_URL, MOODLE_USERINFO_URL, MOODLE_REDIRECT_URI]):
+    st.error("Error: Las variables de entorno de configuración de Moodle OAuth2 no están completas. Por favor, revisa tus Config Vars en Heroku.")
+    st.stop() # Detiene la ejecución si la configuración es incompleta
 
 # --- Inicializa visuales flotantes ---
 float_init()
 
 # --- Estilo, encabezado y componentes visuales (Tu CSS permanece igual) ---
+# Este bloque contiene el CSS para la apariencia de la interfaz de usuario,
+# incluyendo los estilos para las burbujas de chat, el título y el grabador de audio.
 st.markdown("""
     <style>
     header {visibility: hidden;}
@@ -93,6 +108,8 @@ st.markdown("""
 
 
 # --- Estado de la sesión ---
+# Inicializa las variables de estado de la sesión si no existen,
+# lo que es crucial para mantener la información a través de las interacciones de Streamlit.
 def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -100,42 +117,105 @@ def initialize_session_state():
         ]
     if "moodle_context" not in st.session_state:
         st.session_state.moodle_context = ""
-    # En esta versión, no necesitamos 'user_authenticated' ni la lógica de OAuth2
-    # El email se obtiene directamente de la URL
+    if "user_authenticated" not in st.session_state:
+        st.session_state.user_authenticated = False
     if "user_email" not in st.session_state:
         st.session_state.user_email = None
     if "moodle_context_loaded" not in st.session_state:
-        st.session_state.moodle_context_loaded = False 
+        st.session_state.moodle_context_loaded = False # Para asegurar que el contexto solo se carga una vez por sesión
 
 
 initialize_session_state()
 
-# --- Lógica para obtener el email de la URL ---
+# --- Lógica de Autenticación OAuth2 ---
+# Esta sección maneja el flujo de autenticación OAuth2 con Moodle.
+
+# 1. Comprobar si hay un código de autorización en la URL (callback de Moodle)
+# Cuando Moodle redirige de vuelta a la aplicación después del inicio de sesión,
+# incluirá un 'code' en los parámetros de la URL.
 query_params = st.query_params
-# Obtener el email del parámetro 'email' en la URL
-user_email_from_url = query_params.get("email")
+code = query_params.get("code")
 
-if user_email_from_url:
-    st.session_state.user_email = user_email_from_url
-    st.success(f"¡Bienvenido! Usuario: {st.session_state.user_email}")
-    # Opcional: Limpiar el parámetro 'email' de la URL después de obtenerlo
-    # st.experimental_set_query_params() # Esto borraría todos los query params
-else:
-    # Si no hay email en la URL, se puede mostrar un mensaje o detener la app
-    st.info("Por favor, accede a la aplicación con tu email en la URL (ej: ?email=tu_correo@cun.edu.co).")
-    # Puedes detener la ejecución si el email es obligatorio
-    # st.stop()
+if code and not st.session_state.user_authenticated:
+    try:
+        # Crea una sesión OAuth2 para intercambiar el código por un token de acceso.
+        client = OAuth2Session(
+            client_id=MOODLE_CLIENT_ID,
+            client_secret=MOODLE_CLIENT_SECRET,
+            redirect_uri=MOODLE_REDIRECT_URI,
+            scope='openid profile email offline_access' # Los ámbitos solicitados a Moodle.
+        )
+        
+        # Intercambia el código de autorización por tokens (access_token, id_token, etc.).
+        # 'authorization_response' se usa para que Authlib procese los parámetros de la URL de redirección.
+        tokens = client.fetch_token(
+            MOODLE_TOKEN_URL,
+            authorization_response=st.experimental_get_query_params(), 
+            # Si Moodle usa client_secret_post para la autenticación de tokens (es común), podrías necesitar:
+            # client_auth_method='client_secret_post'
+        )
+
+        # Extrae el email del ID Token si está presente (parte de OpenID Connect).
+        user_info = client.parse_id_token(tokens.get('id_token'))
+        st.session_state.user_email = user_info.get('email')
+
+        # Si el email no se obtuvo del ID Token, se intenta el endpoint de Userinfo.
+        if not st.session_state.user_email and 'access_token' in tokens:
+            user_data_response = client.get(MOODLE_USERINFO_URL, token=tokens)
+            user_data_response.raise_for_status() # Lanza una excepción para errores HTTP (ej. 404, 500)
+            user_data = user_data_response.json()
+            st.session_state.user_email = user_data.get('email')
+
+        # Si se obtiene el email, se marca al usuario como autenticado.
+        if st.session_state.user_email:
+            st.session_state.user_authenticated = True
+            st.success(f"¡Autenticado como {st.session_state.user_email}!")
+            # Limpia los parámetros de la URL para una URL más limpia y evita re-procesar el código.
+            st.query_params.clear() 
+            st.rerun() # Fuerza una recarga de la aplicación para mostrar la interfaz completa.
+        else:
+            st.error("No se pudo obtener el correo electrónico del usuario desde Moodle.")
+            st.session_state.user_authenticated = False
+
+    except Exception as e:
+        # Manejo de errores durante el proceso de autenticación.
+        st.error(f"Error durante la autenticación OAuth2: {e}")
+        st.session_state.user_authenticated = False
+        st.session_state.user_email = None
 
 
-# --- El resto de la aplicación funciona si se ha obtenido el email ---
+# 2. Si el usuario no está autenticado, mostrar botón de inicio de sesión.
+# Esta es la interfaz inicial que ve el usuario si no ha iniciado sesión.
+if not st.session_state.user_authenticated:
+    st.info("Por favor, inicia sesión con tu cuenta de Moodle para obtener información personalizada de tus cursos.")
+    
+    # Crea la URL de autorización a la que se redirigirá al usuario.
+    client = OAuth2Session(
+        client_id=MOODLE_CLIENT_ID,
+        redirect_uri=MOODLE_REDIRECT_URI,
+        scope='openid profile email offline_access'
+    )
+    authorization_url, state = client.create_authorization_url(MOODLE_AUTHORIZATION_URL)
+    
+    # Guarda el estado para verificarlo en el callback (medida de seguridad contra CSRF).
+    st.session_state.oauth_state = state 
+
+    # Muestra el botón de inicio de sesión.
+    st.link_button("Iniciar Sesión con Moodle", authorization_url)
+    st.stop() # Detiene la ejecución del resto de la aplicación hasta que el usuario se autentique.
+
+# --- Si el usuario está autenticado, procede con el resto de la aplicación ---
+# Este bloque solo se ejecuta si st.session_state.user_authenticated es True.
 
 # Micrófono centrado y flotante
+# Configura el grabador de audio para que flote en la parte inferior de la pantalla.
 footer_container = st.container()
 with footer_container:
     audio_bytes = audio_recorder(text=None)
 footer_container.float("bottom: 0rem;")
 
 # Mostrar historial del chat
+# Itera sobre los mensajes en el estado de la sesión y los muestra en burbujas de chat.
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         css_class = "assistant-bubble" if message["role"] == "assistant" else "user-bubble"
@@ -146,6 +226,7 @@ for message in st.session_state.messages:
         """, unsafe_allow_html=True)
 
 # Transcripción del audio del usuario
+# Procesa el audio grabado por el usuario, lo transcribe a texto y lo añade al chat.
 if audio_bytes:
     with st.spinner("Transcribiendo..."):
         webm_file_path = "temp_audio.mp3"
@@ -160,23 +241,27 @@ if audio_bytes:
                         {transcript}
                     </div>
                 """, unsafe_allow_html=True)
-            os.remove(webm_file_path)
+            os.remove(webm_file_path) # Elimina el archivo de audio temporal.
 
 # Procesar respuesta del asistente
+# Genera una respuesta de la IA basada en el historial del chat y el contexto de Moodle.
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
-            # Solo cargar el contexto de Moodle si aún no está cargado
-            # Aquí la carga del contexto depende de si st.session_state.user_email tiene un valor
-            if not st.session_state.moodle_context_loaded and st.session_state.user_email:
+            # Solo cargar el contexto de Moodle si aún no está cargado y el usuario está autenticado.
+            if not st.session_state.moodle_context_loaded and st.session_state.user_authenticated:
                 titulos_globales = ""
                 contenidos_usuario = ""
                 try:
+                    # Obtiene títulos de cursos globales y contenido específico del usuario desde Moodle.
                     titulos_globales = get_all_course_titles()
 
-                    # Usamos el email del usuario obtenido de la URL
-                    contenidos_usuario = get_user_course_contents_by_email(st.session_state.user_email)
-                    
+                    if st.session_state.user_email:
+                        contenidos_usuario = get_user_course_contents_by_email(st.session_state.user_email)
+                    else:
+                        contenidos_usuario = "No se pudo obtener el email del usuario autenticado para buscar contenido específico."
+
+                    # Combina la información de Moodle en un único contexto para la IA.
                     if "⚠️" in contenidos_usuario or "❌" in contenidos_usuario or not contenidos_usuario.strip() or "No se encontró ningún usuario" in contenidos_usuario:
                         st.session_state.moodle_context = (
                             f"Información de Moodle específica del usuario (limitada/error, o usuario no encontrado): {contenidos_usuario}\n\n"
@@ -193,9 +278,9 @@ if st.session_state.messages[-1]["role"] != "assistant":
                     if not titulos_globales and not contenidos_usuario:
                         st.session_state.moodle_context += "\nNo hay información de Moodle disponible en absoluto."
                 
-                st.session_state.moodle_context_loaded = True # Marca que el contexto ya fue cargado para esta sesión
+                st.session_state.moodle_context_loaded = True # Marca que el contexto ya fue cargado.
 
-            # Definición del rol del sistema para la IA, con instrucciones claras sobre el uso del contexto
+            # Define el rol del sistema para la IA, instruyéndola a usar el contexto de Moodle.
             system_intro = {
                 "role": "system",
                 "content": (
@@ -208,17 +293,19 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 )
             }
 
+            # Prepara los mensajes para el modelo de IA, incluyendo la introducción del sistema.
             mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
             final_response = get_answer(mensajes_ajustados)
 
         with st.spinner("Generando respuesta en audio..."):
             audio_file = text_to_speech(final_response)
-            autoplay_audio(audio_file)
+            autoplay_audio(audio_file) # Reproduce la respuesta de audio automáticamente.
 
+        # Muestra la respuesta del asistente en la interfaz de chat.
         st.markdown(f"""
             <div class="chat-bubble assistant-bubble">
                 {final_response}
             </div>
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
-        os.remove(audio_file)
+        os.remove(audio_file) # Elimina el archivo de audio temporal.
