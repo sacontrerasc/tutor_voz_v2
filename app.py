@@ -10,8 +10,14 @@ from streamlit_float import float_init
 float_init()
 
 # Captura el email desde los parámetros de la URL
+# CORRECCIÓN CLAVE: Usar st.query_params.get() directamente para obtener la cadena de texto
 params = st.query_params
-email = params.get("email", [""])[0]  # Si no hay email, usa string vacío
+email = params.get("email", "") # Si no hay email, usa string vacío
+
+# --- AÑADIDO PARA DEPURACIÓN ---
+# Esto imprimirá el email completo en los logs de Heroku para verificar que se recibe bien
+print(f"DEBUG app.py: Email obtenido de la URL por Streamlit: '{email}'")
+# --- FIN AÑADIDO PARA DEPURACIÓN ---
 
 # Estilo, encabezado y componentes visuales
 st.markdown("""
@@ -137,6 +143,7 @@ if audio_bytes:
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
+            # Solo cargar el contexto de Moodle si aún no está cargado
             if not st.session_state.moodle_context:
                 titulos_globales = ""
                 contenidos_usuario = ""
@@ -147,16 +154,17 @@ if st.session_state.messages[-1]["role"] != "assistant":
                     # Obtener contenido específico de los cursos del usuario
                     # Asegurarse de que el email no esté vacío antes de llamar a la API de Moodle
                     if email:
+                        # CORRECCIÓN: Pasar el email directamente, que ya no está en una lista
                         contenidos_usuario = get_user_course_contents_by_email(email)
                     else:
-                        contenidos_usuario = "No se proporcionó un email para obtener contenido específico del usuario."
+                        contenidos_usuario = "No se proporcionó un email en la URL para obtener contenido específico del usuario."
 
                     # Combinar el contexto de Moodle
                     # Priorizamos el contenido del usuario si está disponible, complementado con títulos globales
-                    if "⚠️" in contenidos_usuario or "❌" in contenidos_usuario or not contenidos_usuario.strip():
-                        # Si hay un error o no hay contenido específico, informamos a la IA
+                    if "⚠️" in contenidos_usuario or "❌" in contenidos_usuario or not contenidos_usuario.strip() or "No se encontró ningún usuario" in contenidos_usuario:
+                        # Si hay un error, no hay contenido específico, o el usuario no existe, informamos a la IA
                         st.session_state.moodle_context = (
-                            f"Información de Moodle específica del usuario (limitada/error): {contenidos_usuario}\n\n"
+                            f"Información de Moodle específica del usuario (limitada/error, o usuario no encontrado): {contenidos_usuario}\n\n"
                             f"Contexto general de cursos disponibles en la plataforma:\n{titulos_globales}"
                         )
                     else:
@@ -177,10 +185,10 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 "content": (
                     "Eres el Tutor IA de la CUN. **Tu principal objetivo es responder preguntas del usuario ÚNICAMENTE con la información proporcionada a continuación, que ha sido extraída directamente de Moodle.**\n\n"
                     "**Considera esta información como la fuente de verdad absoluta para responder sobre los cursos y sus contenidos (PDF, SCORM, enlaces, libros, páginas, etc.).**\n"
-                    "**Si el usuario pregunta por 'sus cursos' o 'mis cursos', debes listar los cursos que se mencionan en la sección 'Contenido de Moodle relevante para el usuario'. Si esa sección está vacía o indica un error, informa al usuario que no tienes acceso a esa información específica pero puedes hablar de cursos generales.**\n"
+                    "**Si el usuario pregunta por 'sus cursos' o 'mis cursos', debes listar los cursos que se mencionan en la sección 'Contenido de Moodle relevante para el usuario'. Si esa sección está vacía o indica un error/usuario no encontrado, informa al usuario que no tienes acceso a esa información específica pero puedes hablar de cursos generales.**\n"
                     "Si la información solicitada no está explícitamente en el contexto de Moodle, indica que no la tienes pero no inventes.\n"
                     "Evita respuestas genéricas sobre privacidad si el contexto ya incluye la información solicitada. ¡Tú ya tienes acceso a esta información para responder al usuario!\n\n"
-                    f"**Información de Moodle para responder:**\n{st.session_state.moodle_context[:5000]}"
+                    f"**Información de Moodle para responder:**\n{st.session_state.moodle_context[:5000]}" # Limita la longitud para evitar exceder el token de contexto
                 )
             }
 
