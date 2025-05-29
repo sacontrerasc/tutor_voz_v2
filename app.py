@@ -5,23 +5,12 @@ from moodle_api import get_all_course_titles, get_user_course_contents_by_email
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
-# Importar Authlib
-from authlib.integrations.requests_client import OAuth2Session
-import urllib.parse # Para manejar URLs
-
-# --- Configuración de OAuth2 desde Variables de Entorno ---
-MOODLE_CLIENT_ID = os.environ.get("MOODLE_CLIENT_ID")
-MOODLE_CLIENT_SECRET = os.environ.get("MOODLE_CLIENT_SECRET")
-MOODLE_AUTHORIZATION_URL = os.environ.get("MOODLE_AUTHORIZATION_URL")
-MOODLE_TOKEN_URL = os.environ.get("MOODLE_TOKEN_URL")
-MOODLE_USERINFO_URL = os.environ.get("MOODLE_USERINFO_URL")
-MOODLE_REDIRECT_URI = os.environ.get("MOODLE_REDIRECT_URI")
-
-# --- Comprobación de configuración esencial ---
-if not all([MOODLE_CLIENT_ID, MOODLE_CLIENT_SECRET, MOODLE_AUTHORIZATION_URL,
-            MOODLE_TOKEN_URL, MOODLE_USERINFO_URL, MOODLE_REDIRECT_URI]):
-    st.error("Error: Las variables de entorno de configuración de Moodle OAuth2 no están completas. Por favor, revisa tus Config Vars en Heroku.")
-    st.stop() # Detiene la ejecución si la configuración es incompleta
+# --- Configuración (solo API Key de OpenAI si es la única variable de entorno) ---
+# OPENAI_API_KEY se asume que sigue siendo una variable de entorno
+# Puedes añadir una comprobación si es necesaria para OPENAI_API_KEY
+# if not os.environ.get("OPENAI_API_KEY"):
+#     st.error("Error: La variable de entorno OPENAI_API_KEY no está configurada.")
+#     st.stop()
 
 # --- Inicializa visuales flotantes ---
 float_init()
@@ -111,87 +100,34 @@ def initialize_session_state():
         ]
     if "moodle_context" not in st.session_state:
         st.session_state.moodle_context = ""
-    if "user_authenticated" not in st.session_state:
-        st.session_state.user_authenticated = False
+    # En esta versión, no necesitamos 'user_authenticated' ni la lógica de OAuth2
+    # El email se obtiene directamente de la URL
     if "user_email" not in st.session_state:
         st.session_state.user_email = None
     if "moodle_context_loaded" not in st.session_state:
-        st.session_state.moodle_context_loaded = False # Para asegurar que el contexto solo se carga una vez por sesión
+        st.session_state.moodle_context_loaded = False 
 
 
 initialize_session_state()
 
-# --- Lógica de Autenticación OAuth2 ---
-
-# 1. Comprobar si hay un código de autorización en la URL (callback de Moodle)
+# --- Lógica para obtener el email de la URL ---
 query_params = st.query_params
-code = query_params.get("code")
+# Obtener el email del parámetro 'email' en la URL
+user_email_from_url = query_params.get("email")
 
-if code and not st.session_state.user_authenticated:
-    try:
-        # Crea una sesión OAuth2 para intercambiar el código por un token
-        client = OAuth2Session(
-            client_id=MOODLE_CLIENT_ID,
-            client_secret=MOODLE_CLIENT_SECRET,
-            redirect_uri=MOODLE_REDIRECT_URI,
-            scope='openid profile email offline_access'
-        )
-        
-        # Intercambia el código de autorización por tokens
-        tokens = client.fetch_token(
-            MOODLE_TOKEN_URL,
-            authorization_response=st.experimental_get_query_params(), # Authlib puede manejar los query params directamente
-            # Si Moodle usa client_secret_post para la autenticación de tokens, podrías necesitar:
-            # client_auth_method='client_secret_post'
-        )
-
-        # Extrae el email del ID Token (si estás usando OpenID Connect)
-        user_info = client.parse_id_token(tokens.get('id_token'))
-        st.session_state.user_email = user_info.get('email')
-
-        # Si el email no está en el ID Token, puedes intentar el Userinfo endpoint
-        if not st.session_state.user_email and 'access_token' in tokens:
-            user_data_response = client.get(MOODLE_USERINFO_URL, token=tokens)
-            user_data_response.raise_for_status() # Lanza una excepción para errores HTTP
-            user_data = user_data_response.json()
-            st.session_state.user_email = user_data.get('email')
+if user_email_from_url:
+    st.session_state.user_email = user_email_from_url
+    st.success(f"¡Bienvenido! Usuario: {st.session_state.user_email}")
+    # Opcional: Limpiar el parámetro 'email' de la URL después de obtenerlo
+    # st.experimental_set_query_params() # Esto borraría todos los query params
+else:
+    # Si no hay email en la URL, se puede mostrar un mensaje o detener la app
+    st.info("Por favor, accede a la aplicación con tu email en la URL (ej: ?email=tu_correo@cun.edu.co).")
+    # Puedes detener la ejecución si el email es obligatorio
+    # st.stop()
 
 
-        if st.session_state.user_email:
-            st.session_state.user_authenticated = True
-            st.success(f"¡Autenticado como {st.session_state.user_email}!")
-            # Limpia los parámetros de la URL para una URL más limpia después de la autenticación
-            st.query_params.clear() 
-            st.rerun() # Fuerza una recarga para limpiar la URL y mostrar la interfaz completa
-        else:
-            st.error("No se pudo obtener el correo electrónico del usuario desde Moodle.")
-            st.session_state.user_authenticated = False
-
-    except Exception as e:
-        st.error(f"Error durante la autenticación OAuth2: {e}")
-        st.session_state.user_authenticated = False
-        st.session_state.user_email = None
-
-
-# 2. Si el usuario no está autenticado, mostrar botón de inicio de sesión
-if not st.session_state.user_authenticated:
-    st.info("Por favor, inicia sesión con tu cuenta de Moodle para obtener información personalizada de tus cursos.")
-    
-    # Crea la URL de autorización
-    client = OAuth2Session(
-        client_id=MOODLE_CLIENT_ID,
-        redirect_uri=MOODLE_REDIRECT_URI,
-        scope='openid profile email offline_access'
-    )
-    authorization_url, state = client.create_authorization_url(MOODLE_AUTHORIZATION_URL)
-    
-    # Guarda el estado para verificarlo en el callback (importante para seguridad)
-    st.session_state.oauth_state = state 
-
-    st.link_button("Iniciar Sesión con Moodle", authorization_url)
-    st.stop() # Detiene la ejecución del resto de la aplicación hasta que se autentique
-
-# --- Si el usuario está autenticado, procede con el resto de la aplicación ---
+# --- El resto de la aplicación funciona si se ha obtenido el email ---
 
 # Micrófono centrado y flotante
 footer_container = st.container()
@@ -231,22 +167,16 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
             # Solo cargar el contexto de Moodle si aún no está cargado
-            # Ahora usamos st.session_state.user_email para la carga del contexto
-            if not st.session_state.moodle_context_loaded and st.session_state.user_authenticated:
+            # Aquí la carga del contexto depende de si st.session_state.user_email tiene un valor
+            if not st.session_state.moodle_context_loaded and st.session_state.user_email:
                 titulos_globales = ""
                 contenidos_usuario = ""
                 try:
                     titulos_globales = get_all_course_titles()
 
-                    # Usamos el email del usuario autenticado
-                    if st.session_state.user_email:
-                        contenidos_usuario = get_user_course_contents_by_email(st.session_state.user_email)
-                        # También puedes usar el token de acceso para otras llamadas a la API de Moodle
-                        # Por ejemplo, si get_user_course_contents_by_email necesita el token OAuth,
-                        # tendrías que modificar esa función para aceptarlo.
-                    else:
-                        contenidos_usuario = "No se pudo obtener el email del usuario autenticado para buscar contenido específico."
-
+                    # Usamos el email del usuario obtenido de la URL
+                    contenidos_usuario = get_user_course_contents_by_email(st.session_state.user_email)
+                    
                     if "⚠️" in contenidos_usuario or "❌" in contenidos_usuario or not contenidos_usuario.strip() or "No se encontró ningún usuario" in contenidos_usuario:
                         st.session_state.moodle_context = (
                             f"Información de Moodle específica del usuario (limitada/error, o usuario no encontrado): {contenidos_usuario}\n\n"
