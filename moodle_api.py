@@ -129,4 +129,4 @@ def get_user_course_contents_by_email(email):
         return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
 
     except Exception as e:
-        return f"❌ Error al obtener contenidos del usuario: {e}
+        return f"❌ Error al obtener contenidos del usuario: {e}"
