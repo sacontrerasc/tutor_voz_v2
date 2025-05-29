@@ -1,7 +1,9 @@
+# app.py
 import streamlit as st
 import os
+# ¡CORRECCIÓN AQUÍ! Cambia el nombre de la función
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
-from moodle_api import get_all_course_titles, get_all_course_contents_for_user
+from moodle_api import get_all_course_titles, get_user_course_contents_by_email # <--- CAMBIO AQUÍ
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
 
@@ -138,8 +140,9 @@ if st.session_state.messages[-1]["role"] != "assistant":
         with st.spinner("Pensando..."):
             if not st.session_state.moodle_context:
                 try:
-                    titulos = get_all_course_titles(email)
-                    contenidos = get_all_course_contents_for_user(email)
+                    titulos = get_all_course_titles() # Esta función no requiere email
+                    # ¡CORRECCIÓN AQUÍ! Usa el nombre de la función correcta
+                    contenidos = get_user_course_contents_by_email(email) # <--- CAMBIO AQUÍ
                     st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
