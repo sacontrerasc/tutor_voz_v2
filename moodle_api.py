@@ -1,12 +1,14 @@
 import os
 import requests
 
+# Cargar variables de entorno
 MOODLE_URL = os.getenv("moodle_url")
 MOODLE_TOKEN = os.getenv("moodle_token")
 
 if not MOODLE_URL or not MOODLE_TOKEN:
     raise ValueError("❌ Las variables de entorno 'moodle_url' o 'moodle_token' no están definidas.")
 
+# Función genérica para llamar funciones de la API de Moodle
 def call_moodle_function(function_name, params=None):
     if params is None:
         params = {}
@@ -22,6 +24,7 @@ def call_moodle_function(function_name, params=None):
     else:
         raise Exception(f"🔴 Error {response.status_code} al llamar a Moodle: {response.text}")
 
+# 🔹 Títulos de todos los cursos
 def get_all_course_titles():
     try:
         cursos = call_moodle_function("core_course_get_courses")
@@ -31,6 +34,7 @@ def get_all_course_titles():
     except Exception as e:
         return f"⚠️ Error al obtener los títulos de los cursos: {e}"
 
+# 🔹 Contenidos de todos los cursos
 def get_all_course_contents():
     try:
         cursos = call_moodle_function("core_course_get_courses")
@@ -58,3 +62,29 @@ def get_all_course_contents():
             all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
 
     return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
+
+# 🔹 Contenidos de cursos del usuario por email
+def get_user_courses_by_email(email):
+    try:
+        users = call_moodle_function("core_user_get_users", {
+            "criteria[0][key]": "email",
+            "criteria[0][value]": email
+        })
+
+        if not users:
+            return "⚠️ No se encontró ningún usuario con ese correo."
+        
+        user_id = users[0]["id"]
+        cursos = call_moodle_function("core_enrol_get_users_courses", {"userid": user_id})
+
+        if not cursos:
+            return "⚠️ No estás matriculado en ningún curso."
+
+        detalles = []
+        for curso in cursos:
+            detalles.append(f"📘 {curso['fullname']} (ID: {curso['id']})")
+
+        return "\n".join(detalles)
+
+    except Exception as e:
+        return f"❌ Error al obtener cursos del usuario: {e}"
