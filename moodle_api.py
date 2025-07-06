@@ -1,3 +1,4 @@
+# moodle_api.py
 import os
 import requests
 
@@ -24,7 +25,7 @@ def call_moodle_function(function_name, params=None):
     else:
         raise Exception(f"🔴 Error {response.status_code} al llamar a Moodle: {response.text}")
 
-# 🔹 Títulos de todos los cursos
+# 🔹 Obtener títulos de todos los cursos
 def get_all_course_titles():
     try:
         cursos = call_moodle_function("core_course_get_courses")
@@ -34,7 +35,7 @@ def get_all_course_titles():
     except Exception as e:
         return f"⚠️ Error al obtener los títulos de los cursos: {e}"
 
-# 🔹 Contenidos de todos los cursos
+# 🔹 Obtener contenidos completos de todos los cursos (no filtrado por usuario)
 def get_all_course_contents():
     try:
         cursos = call_moodle_function("core_course_get_courses")
@@ -63,22 +64,23 @@ def get_all_course_contents():
 
     return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
 
-# 🔹 Contenidos completos de los cursos del usuario por email
+# 🔹 Obtener contenidos solo de los cursos del usuario autenticado por email
 def get_user_course_contents_by_email(email):
     try:
-        users = call_moodle_function("core_user_get_users", {
+        result = call_moodle_function("core_user_get_users", {
             "criteria[0][key]": "email",
             "criteria[0][value]": email
         })
 
+        users = result.get("users", [])
         if not users:
-            return "⚠️ No se encontró ningún usuario con ese correo."
+            return f"⚠️ No se encontró ningún usuario con el correo {email}."
 
         user_id = users[0]["id"]
-        cursos = call_moodle_function("core_enrol_get_users_courses", {"userid": user_id})
 
+        cursos = call_moodle_function("core_enrol_get_users_courses", {"userid": user_id})
         if not cursos:
-            return "⚠️ No estás matriculado en ningún curso."
+            return f"⚠️ El usuario con correo {email} no está matriculado en ningún curso."
 
         all_contents = []
 
