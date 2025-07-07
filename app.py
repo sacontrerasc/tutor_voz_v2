@@ -72,7 +72,7 @@ st.markdown(f"""
     <div class='title-block'>
         <h1>Tutor de Voz IA</h1>
         <h1>CUN</h1>
-        <p style='color:#333; font-size:14px;'>Tu correo detectado es: <b>{email}</b></p>
+        <p><b>Tu correo detectado es:</b> {email}</p>
     </div>
     <div style='text-align: center; margin-bottom: 20px;'>
         <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='140' alt='Logo CUN'/>
@@ -122,23 +122,23 @@ if audio_bytes:
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
-            if not st.session_state.moodle_context:
+            if not st.session_state.moodle_context and email:
                 try:
                     titulos = get_all_course_titles()
                     contenidos = get_user_course_contents_by_email(email)
-                    st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
+                    st.session_state.moodle_context = f"📚 CURSOS DISPONIBLES:\n{titulos}\n\n📂 CURSOS DEL USUARIO:\n{contenidos}"
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
             print("==== CONTEXTO USADO ====")
-            print(st.session_state.moodle_context[:1000])  # Muestra más de 500 si es posible
+            print(st.session_state.moodle_context[:500])
 
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres el Tutor IA de la CUN. Usa únicamente la siguiente información de Moodle "
-                    "para responder de manera precisa a cualquier consulta sobre los cursos del usuario:\n\n"
-                    f"{st.session_state.moodle_context[:5000]}"
+                    "Eres el Tutor IA de la CUN. Usa SOLO la información extraída desde Moodle (cursos, contenidos y secciones) "
+                    "para responder preguntas del estudiante sobre sus cursos matriculados. No digas que no tienes acceso si hay datos.\n\n"
+                    f"{st.session_state.moodle_context[:4000]}"
                 )
             }
 
@@ -156,4 +156,3 @@ if st.session_state.messages[-1]["role"] != "assistant":
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
-
