@@ -2,13 +2,13 @@ import os
 import streamlit as st
 import streamlit.components.v1 as components
 from audio_recorder_streamlit import audio_recorder
-from streamlit_float import float_init
+from streamlit_float import *
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
-from moodle_api import get_user_course_contents_by_email
+from moodle_api import get_all_course_titles, get_user_course_contents_by_email
 
 float_init()
 
-# ---------- Estilos ----------
+# Estilos
 st.markdown("""
     <style>
         .chat-container {
@@ -24,14 +24,14 @@ st.markdown("""
         .user {
             background-color: #0f172a;
             color: white;
-            text-align: right;
             align-self: flex-end;
+            text-align: right;
         }
         .bot {
             background: linear-gradient(90deg, #0ea5e9, #312e81);
             color: white;
-            text-align: left;
             align-self: flex-start;
+            text-align: left;
         }
         .chat-box {
             display: flex;
@@ -39,7 +39,8 @@ st.markdown("""
         }
         .logo {
             display: block;
-            margin: 0 auto;
+            margin-left: auto;
+            margin-right: auto;
             width: 180px;
         }
         .avatar {
@@ -56,29 +57,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ---------- JavaScript para recibir email ----------
-components.html("""
-    <script>
-    window.addEventListener("message", (event) => {
-        const email = event.data.email;
-        if (email) {
-            const streamlitDoc = window.parent || window;
-            streamlitDoc.postMessage({ type: "streamlit:setComponentValue", value: email }, "*");
-        }
-    });
-    </script>
-""", height=0)
+# 🔄 Recuperar el email desde la URL y guardar en session_state
+query_params = st.query_params
+if "email" in query_params:
+    st.session_state["email"] = query_params["email"]
+email = st.session_state.get("email", "")
 
-# ---------- Obtener el email del usuario desde mensaje recibido ----------
-if "email" not in st.session_state:
-    st.session_state["email"] = ""
-
-email_placeholder = st.text_input("Tu correo detectado es:", value=st.session_state["email"], disabled=True, label_visibility="collapsed")
-
-# Cabecera
+# Encabezado y bienvenida
 st.image("https://i.imgur.com/h8qO5Rf.png", use_column_width=False, width=150)
 st.markdown("<h2 style='text-align: center; color: #1e40af;'>CUN</h2>", unsafe_allow_html=True)
-st.markdown(f"<div class='email-banner'>Tu correo detectado es: {st.session_state['email']}</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='email-banner'>Tu correo detectado es: {email}</div>", unsafe_allow_html=True)
+
 st.image("https://i.imgur.com/tLVo6Q7.png", width=130, class_='avatar')
 
 # Chat inicial
@@ -94,8 +83,8 @@ if audio_bytes:
     if question:
         st.markdown(f"<div class='user chat-container'>{question}</div>", unsafe_allow_html=True)
 
+        # 🔍 Verificar si es sobre cursos
         if "curso" in question.lower():
-            email = st.session_state["email"]
             if email and "@" in email:
                 answer = get_user_course_contents_by_email(email)
             else:
