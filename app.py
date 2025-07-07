@@ -1,31 +1,31 @@
-# app.py
 import streamlit as st
 import os
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
 from moodle_api import get_all_course_titles, get_user_course_contents_by_email
 from audio_recorder_streamlit import audio_recorder
-from streamlit_float import *
+from streamlit_float import float_init
 
 # Inicializar elementos flotantes
 float_init()
 
-# --- Script para recibir correo por postMessage desde el iframe en Moodle ---
+# --- Script para recibir el correo desde el iframe de Moodle ---
 st.components.v1.html("""
 <script>
 window.addEventListener("message", (event) => {
     const correo = event.data.email;
     if (correo) {
-        const queryParams = new URLSearchParams(window.location.search);
-        queryParams.set("email", correo);
-        window.location.search = queryParams.toString();
+        const streamlitDoc = window.parent || window;
+        streamlitDoc.postMessage({ type: "streamlit:setComponentValue", value: correo }, "*");
     }
 }, false);
 </script>
 """, height=0)
 
-# --- Capturar parámetro 'email' desde la URL usando API actual ---
-params = st.query_params
-email = params.get("email", [""])[0]
+# Guardar correo en session_state (actualización automática)
+if "email" not in st.session_state:
+    st.session_state["email"] = ""
+
+email = st.session_state["email"]
 
 # --- Estilos y encabezado ---
 st.markdown(f"""
@@ -95,13 +95,10 @@ div[data-testid="stAudioRecorder"] span {{
 """, unsafe_allow_html=True)
 
 # --- Estado de sesión ---
-def initialize_session_state():
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}]
-    if "moodle_context" not in st.session_state:
-        st.session_state.moodle_context = ""
-
-initialize_session_state()
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}]
+if "moodle_context" not in st.session_state:
+    st.session_state.moodle_context = ""
 
 # --- Micrófono flotante ---
 footer_container = st.container()
@@ -140,9 +137,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
-            print("==== CONTEXTO USADO ====")
-            print(st.session_state.moodle_context[:500])
-
             system_intro = {
                 "role": "system",
                 "content": (
@@ -162,3 +156,4 @@ if st.session_state.messages[-1]["role"] != "assistant":
         st.markdown(f"<div class='chat-bubble assistant-bubble'>{final_response}</div>", unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
+
