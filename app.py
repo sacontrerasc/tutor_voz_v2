@@ -23,8 +23,9 @@ window.addEventListener("message", (event) => {
 </script>
 """, height=0)
 
-# --- Capturar parámetro 'email' desde la URL ---
-email = st.experimental_get_query_params().get("email", [""])[0]
+# --- Capturar parámetro 'email' desde la URL usando API actual ---
+params = st.query_params
+email = params.get("email", [""])[0]
 
 # --- Estilos y encabezado ---
 st.markdown(f"""
