@@ -35,36 +35,7 @@ def get_all_course_titles():
     except Exception as e:
         return f"⚠️ Error al obtener los títulos de los cursos: {e}"
 
-# 🔹 Obtener contenidos completos de todos los cursos (no filtrado por usuario)
-def get_all_course_contents():
-    try:
-        cursos = call_moodle_function("core_course_get_courses")
-    except Exception as e:
-        return f"⚠️ Error al obtener la lista de cursos: {e}"
-
-    all_contents = []
-
-    for curso in cursos:
-        course_id = curso.get("id")
-        course_name = curso.get("fullname", "Sin nombre")
-        try:
-            secciones = call_moodle_function("core_course_get_contents", {"courseid": course_id})
-            for seccion in secciones:
-                nombre_sec = seccion.get("name", "")
-                for modulo in seccion.get("modules", []):
-                    nombre_modulo = modulo.get("name", "")
-                    tipo_modulo = modulo.get("modname", "")
-                    descripcion = modulo.get("description", "")
-                    contenido = f"[{course_name}] {nombre_sec} - {nombre_modulo} ({tipo_modulo})"
-                    if descripcion:
-                        contenido += f": {descripcion}"
-                    all_contents.append(contenido)
-        except Exception as e:
-            all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
-
-    return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
-
-# 🔹 Obtener contenidos solo de los cursos del usuario autenticado por email
+# 🔹 Obtener contenidos solo de los cursos del usuario autenticado por email (formato ordenado y claro)
 def get_user_course_contents_by_email(email):
     try:
         result = call_moodle_function("core_user_get_users", {
@@ -77,32 +48,45 @@ def get_user_course_contents_by_email(email):
             return f"⚠️ No se encontró ningún usuario con el correo {email}."
 
         user_id = users[0]["id"]
-
         cursos = call_moodle_function("core_enrol_get_users_courses", {"userid": user_id})
         if not cursos:
             return f"⚠️ El usuario con correo {email} no está matriculado en ningún curso."
 
-        all_contents = []
+        respuesta = ""
 
         for curso in cursos:
             course_id = curso.get("id")
             course_name = curso.get("fullname", "Sin nombre")
+            respuesta += f"\n📚 *{course_name}*\n"
             try:
                 secciones = call_moodle_function("core_course_get_contents", {"courseid": course_id})
                 for seccion in secciones:
-                    nombre_sec = seccion.get("name", "")
                     for modulo in seccion.get("modules", []):
-                        nombre_modulo = modulo.get("name", "")
-                        tipo_modulo = modulo.get("modname", "")
-                        descripcion = modulo.get("description", "")
-                        contenido = f"[{course_name}] {nombre_sec} - {nombre_modulo} ({tipo_modulo})"
-                        if descripcion:
-                            contenido += f": {descripcion}"
-                        all_contents.append(contenido)
-            except Exception as e:
-                all_contents.append(f"[{course_name}] ❌ Error al cargar contenidos: {e}")
+                        nombre = modulo.get("name", "Sin título")
+                        tipo = modulo.get("modname", "otro").lower()
 
-        return "\n".join(all_contents) if all_contents else "No se pudo recuperar contenido detallado desde Moodle."
+                        # Asignar icono según tipo de recurso
+                        if tipo == "url":
+                            icono = "🔗"
+                        elif tipo == "resource":
+                            icono = "📄"
+                        elif tipo == "forum":
+                            icono = "💬"
+                        elif tipo == "scorm":
+                            icono = "🎓"
+                        elif tipo == "page":
+                            icono = "📘"
+                        elif "práctica" in nombre.lower():
+                            icono = "🎯"
+                        else:
+                            icono = "📎"
+
+                        respuesta += f"• {icono} {nombre} ({tipo})\n"
+
+            except Exception as e:
+                respuesta += f"❌ Error al cargar contenidos: {e}\n"
+
+        return respuesta.strip() if respuesta.strip() else "No se pudo recuperar contenido detallado desde Moodle."
 
     except Exception as e:
         return f"❌ Error al obtener contenidos del usuario: {e}"
