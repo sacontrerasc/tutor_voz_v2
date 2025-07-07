@@ -1,18 +1,16 @@
+# app.py
 import streamlit as st
 import os
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
 from moodle_api import get_all_course_titles, get_user_course_contents_by_email
 from audio_recorder_streamlit import audio_recorder
-from streamlit_float import float_init
+from streamlit_float import *
 
-# Inicializar los elementos flotantes
 float_init()
 
-# Capturar el email desde los parámetros de la URL
 params = st.query_params
 email = params.get("email", [""])[0]
 
-# Estilo visual
 st.markdown("""
     <style>
     header {visibility: hidden;}
@@ -80,7 +78,6 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Estado de la sesión
 def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -91,13 +88,11 @@ def initialize_session_state():
 
 initialize_session_state()
 
-# Micrófono flotante
 footer_container = st.container()
 with footer_container:
     audio_bytes = audio_recorder(text=None)
 footer_container.float("bottom: 0rem;")
 
-# Mostrar historial de mensajes
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         css_class = "assistant-bubble" if message["role"] == "assistant" else "user-bubble"
@@ -107,25 +102,22 @@ for message in st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# Procesar entrada de voz
 if audio_bytes:
     with st.spinner("Transcribiendo..."):
         webm_file_path = "temp_audio.mp3"
         with open(webm_file_path, "wb") as f:
             f.write(audio_bytes)
         transcript = speech_to_text(webm_file_path)
-        os.remove(webm_file_path)
+        if transcript:
+            st.session_state.messages.append({"role": "user", "content": transcript})
+            with st.chat_message("user"):
+                st.markdown(f"""
+                    <div class="chat-bubble user-bubble">
+                        {transcript}
+                    </div>
+                """, unsafe_allow_html=True)
+            os.remove(webm_file_path)
 
-    if transcript:
-        st.session_state.messages.append({"role": "user", "content": transcript})
-        with st.chat_message("user"):
-            st.markdown(f"""
-                <div class="chat-bubble user-bubble">
-                    {transcript}
-                </div>
-            """, unsafe_allow_html=True)
-
-# Procesar respuesta
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
@@ -135,7 +127,11 @@ if st.session_state.messages[-1]["role"] != "assistant":
                     contenidos = get_user_course_contents_by_email(email)
                     st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
                 except Exception as e:
-                    st.session_state.moodle_context = f"No se pudo cargar contenido desde Moodle: {e}"
+                    st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
+
+            # 👇 Aquí el bloque que pediste para ver qué se está usando como contexto
+            print("==== CONTEXTO USADO ====")
+            print(st.session_state.moodle_context[:500])
 
             system_intro = {
                 "role": "system",
@@ -152,7 +148,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
         with st.spinner("Generando respuesta en audio..."):
             audio_file = text_to_speech(final_response)
             autoplay_audio(audio_file)
-            os.remove(audio_file)
 
         st.markdown(f"""
             <div class="chat-bubble assistant-bubble">
@@ -160,3 +155,4 @@ if st.session_state.messages[-1]["role"] != "assistant":
             </div>
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
+        os.remove(audio_file)
