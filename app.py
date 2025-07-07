@@ -72,11 +72,11 @@ st.markdown(f"""
     <div class='title-block'>
         <h1>Tutor de Voz IA</h1>
         <h1>CUN</h1>
-        <p><b>Tu correo detectado es:</b> {email}</p>
     </div>
     <div style='text-align: center; margin-bottom: 20px;'>
         <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='140' alt='Logo CUN'/>
     </div>
+    <p style='text-align: center; font-weight: bold;'>Tu correo detectado es: {email}</p>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
@@ -94,6 +94,7 @@ with footer_container:
     audio_bytes = audio_recorder(text=None)
 footer_container.float("bottom: 0rem;")
 
+# Mostrar historial de conversación
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         css_class = "assistant-bubble" if message["role"] == "assistant" else "user-bubble"
@@ -103,6 +104,7 @@ for message in st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
+# Transcripción
 if audio_bytes:
     with st.spinner("Transcribiendo..."):
         webm_file_path = "temp_audio.mp3"
@@ -119,25 +121,27 @@ if audio_bytes:
                 """, unsafe_allow_html=True)
             os.remove(webm_file_path)
 
+# Generar respuesta del asistente
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
-            if not st.session_state.moodle_context and email:
-                try:
-                    titulos = get_all_course_titles()
-                    contenidos = get_user_course_contents_by_email(email)
-                    st.session_state.moodle_context = f"📚 CURSOS DISPONIBLES:\n{titulos}\n\n📂 CURSOS DEL USUARIO:\n{contenidos}"
-                except Exception as e:
-                    st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
-            print("==== CONTEXTO USADO ====")
-            print(st.session_state.moodle_context[:500])
+            try:
+                titulos = get_all_course_titles()
+                contenidos = get_user_course_contents_by_email(email)
+                st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
+            except Exception as e:
+                st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
+
+            # Debug para consola
+            print("==== CONTEXTO USADO POR EL AGENTE ====")
+            print(st.session_state.moodle_context[:1000])
 
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres el Tutor IA de la CUN. Usa SOLO la información extraída desde Moodle (cursos, contenidos y secciones) "
-                    "para responder preguntas del estudiante sobre sus cursos matriculados. No digas que no tienes acceso si hay datos.\n\n"
+                    "Eres Tutor IA de la CUN. Usa esta información real obtenida desde Moodle "
+                    "para responder a preguntas sobre cursos, recursos, matrículas y contenidos:\n\n"
                     f"{st.session_state.moodle_context[:4000]}"
                 )
             }
