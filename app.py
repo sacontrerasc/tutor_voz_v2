@@ -11,10 +11,10 @@ float_init()
 params = st.query_params
 email = params.get("email", [""])[0]
 
-st.markdown("""
+st.markdown(f"""
     <style>
-    header {visibility: hidden;}
-    .chat-bubble {
+    header {{visibility: hidden;}}
+    .chat-bubble {{
         padding: 14px 20px;
         border-radius: 14px;
         color: white;
@@ -22,38 +22,38 @@ st.markdown("""
         margin: 8px 0;
         max-width: 80%;
         word-wrap: break-word;
-    }
-    .assistant-bubble {
+    }}
+    .assistant-bubble {{
         background: linear-gradient(to right, #0089FF, #3435A1);
         text-align: left;
         margin-right: auto;
         border-top-left-radius: 0;
-    }
-    .user-bubble {
+    }}
+    .user-bubble {{
         background: linear-gradient(to right, #0D192E, #0A2332);
         text-align: right;
         margin-left: auto;
         border-top-right-radius: 0;
-    }
-    .title-block {
+    }}
+    .title-block {{
         text-align: center;
         font-family: "Segoe UI", sans-serif;
         margin-top: 10px;
         margin-bottom: 0;
-    }
-    .title-block h1 {
+    }}
+    .title-block h1 {{
         margin: 0;
         color: #0089FF;
-    }
-    div[data-testid="stAudioRecorder"] {
+    }}
+    div[data-testid="stAudioRecorder"] {{
         background-color: red !important;
         border-radius: 50% !important;
         padding: 12px !important;
         display: flex;
         justify-content: center;
         align-items: center;
-    }
-    div[data-testid="stAudioRecorder"] button {
+    }}
+    div[data-testid="stAudioRecorder"] button {{
         background: linear-gradient(135deg, #0089FF, #3435A1) !important;
         border: none !important;
         border-radius: 50% !important;
@@ -63,15 +63,16 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-    div[data-testid="stAudioRecorder"] span {
+    }}
+    div[data-testid="stAudioRecorder"] span {{
         display: none !important;
-    }
+    }}
     </style>
 
     <div class='title-block'>
         <h1>Tutor de Voz IA</h1>
         <h1>CUN</h1>
+        <p style='color:#333; font-size:14px;'>Tu correo detectado es: <b>{email}</b></p>
     </div>
     <div style='text-align: center; margin-bottom: 20px;'>
         <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='140' alt='Logo CUN'/>
@@ -130,22 +131,18 @@ if st.session_state.messages[-1]["role"] != "assistant":
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
             print("==== CONTEXTO USADO ====")
-            print(st.session_state.moodle_context[:500])
+            print(st.session_state.moodle_context[:1000])  # Muestra más de 500 si es posible
 
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres el Tutor IA de la CUN. Usa exclusivamente la siguiente información real extraída desde Moodle "
-                    "para responder preguntas sobre cursos matriculados, recursos como PDFs, SCORM, libros, enlaces, etc. "
-                    "Si la respuesta no está en la información que recibiste, responde 'No tengo esa información'.\n\n"
+                    "Eres el Tutor IA de la CUN. Usa únicamente la siguiente información de Moodle "
+                    "para responder de manera precisa a cualquier consulta sobre los cursos del usuario:\n\n"
                     f"{st.session_state.moodle_context[:5000]}"
                 )
             }
 
-            ejemplo_usuario = {"role": "user", "content": "¿Qué curso tengo matriculado?"}
-            ejemplo_respuesta = {"role": "assistant", "content": "- Fundamentos de IA\n- ChatGPT y Asistentes Virtuales"}
-
-            mensajes_ajustados = [system_intro, ejemplo_usuario, ejemplo_respuesta] + st.session_state.messages[-6:]
+            mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
             final_response = get_answer(mensajes_ajustados)
 
         with st.spinner("Generando respuesta en audio..."):
@@ -159,3 +156,4 @@ if st.session_state.messages[-1]["role"] != "assistant":
         """, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
+
