@@ -5,11 +5,18 @@ from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
 from moodle_api import get_all_course_titles, get_user_course_contents_by_email
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
+from urllib.parse import unquote
 
 float_init()
 
-# --- Captura el parámetro desde la URL correctamente ---
-email = st.experimental_get_query_params().get("email", [""])[0]
+# --- Captura robusta del parámetro ?email desde la URL ---
+params = st.query_params
+raw_email = params.get("email", "")
+email = unquote(raw_email).strip()
+
+if not email or "@" not in email:
+    st.warning("❌ No se detectó un correo válido en la URL. Usa: ?email=correo@cun.edu.co")
+    st.stop()
 
 # --- Estilo visual ---
 st.markdown(f"""
