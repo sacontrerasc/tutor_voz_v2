@@ -8,9 +8,10 @@ from streamlit_float import *
 
 float_init()
 
-params = st.query_params
-email = params.get("email", [""])[0]
+# --- Captura el parámetro desde la URL correctamente ---
+email = st.experimental_get_query_params().get("email", [""])[0]
 
+# --- Estilo visual ---
 st.markdown(f"""
     <style>
     header {{visibility: hidden;}}
@@ -72,39 +73,33 @@ st.markdown(f"""
     <div class='title-block'>
         <h1>Tutor de Voz IA</h1>
         <h1>CUN</h1>
-    </div>
-    <div style='text-align: center; margin-bottom: 20px;'>
+        <p><b>Tu correo detectado es:</b> {email}</p>
         <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='140' alt='Logo CUN'/>
     </div>
-    <p style='text-align: center; font-weight: bold;'>Tu correo detectado es: {email}</p>
 """, unsafe_allow_html=True)
 
+# --- Estado de sesión ---
 def initialize_session_state():
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}
-        ]
+        st.session_state.messages = [{"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}]
     if "moodle_context" not in st.session_state:
         st.session_state.moodle_context = ""
 
 initialize_session_state()
 
+# --- Micrófono ---
 footer_container = st.container()
 with footer_container:
     audio_bytes = audio_recorder(text=None)
 footer_container.float("bottom: 0rem;")
 
-# Mostrar historial de conversación
+# --- Mostrar mensajes anteriores ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         css_class = "assistant-bubble" if message["role"] == "assistant" else "user-bubble"
-        st.markdown(f"""
-            <div class="chat-bubble {css_class}">
-                {message["content"]}
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-bubble {css_class}'>{message['content']}</div>", unsafe_allow_html=True)
 
-# Transcripción
+# --- Transcripción de voz ---
 if audio_bytes:
     with st.spinner("Transcribiendo..."):
         webm_file_path = "temp_audio.mp3"
@@ -114,35 +109,30 @@ if audio_bytes:
         if transcript:
             st.session_state.messages.append({"role": "user", "content": transcript})
             with st.chat_message("user"):
-                st.markdown(f"""
-                    <div class="chat-bubble user-bubble">
-                        {transcript}
-                    </div>
-                """, unsafe_allow_html=True)
-            os.remove(webm_file_path)
+                st.markdown(f"<div class='chat-bubble user-bubble'>{transcript}</div>", unsafe_allow_html=True)
+        os.remove(webm_file_path)
 
-# Generar respuesta del asistente
+# --- Respuesta de IA ---
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
+            if not st.session_state.moodle_context:
+                try:
+                    titulos = get_all_course_titles()
+                    contenidos = get_user_course_contents_by_email(email)
+                    st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
+                except Exception as e:
+                    st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
-            try:
-                titulos = get_all_course_titles()
-                contenidos = get_user_course_contents_by_email(email)
-                st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
-            except Exception as e:
-                st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
-
-            # Debug para consola
-            print("==== CONTEXTO USADO POR EL AGENTE ====")
-            print(st.session_state.moodle_context[:1000])
+            print("==== CONTEXTO USADO ====")
+            print(st.session_state.moodle_context[:500])
 
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres Tutor IA de la CUN. Usa esta información real obtenida desde Moodle "
-                    "para responder a preguntas sobre cursos, recursos, matrículas y contenidos:\n\n"
-                    f"{st.session_state.moodle_context[:4000]}"
+                    "Eres el Tutor IA de la CUN. Usa la siguiente información real extraída de Moodle "
+                    "para responder sobre cursos, recursos (PDF, SCORM, enlaces, libros, páginas, etc):\n\n"
+                    f"{st.session_state.moodle_context[:5000]}"
                 )
             }
 
@@ -153,10 +143,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
             audio_file = text_to_speech(final_response)
             autoplay_audio(audio_file)
 
-        st.markdown(f"""
-            <div class="chat-bubble assistant-bubble">
-                {final_response}
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-bubble assistant-bubble'>{final_response}</div>", unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
