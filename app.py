@@ -2,20 +2,19 @@
 import streamlit as st
 import os
 from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
-from moodle_api import get_all_course_titles, get_user_course_contents_by_email
+from moodle_api import get_user_course_contents_by_email
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
-from urllib.parse import unquote
 
 float_init()
 
-# --- Captura robusta del parámetro ?email desde la URL ---
-params = st.query_params
-raw_email = params.get("email", "")
-email = unquote(raw_email).strip()
+# --- Captura el parámetro de la URL ---
+query_params = st.query_params  # Reemplazo recomendado de Streamlit
+email = query_params.get("email", "")
 
+# --- Verificación del correo ---
 if not email or "@" not in email:
-    st.warning("❌ No se detectó un correo válido en la URL. Usa: ?email=correo@cun.edu.co")
+    st.error("❌ No se detectó un correo electrónico válido en la URL.")
     st.stop()
 
 # --- Estilo visual ---
@@ -123,11 +122,11 @@ if audio_bytes:
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
+            # Cargar contexto personalizado desde Moodle
             if not st.session_state.moodle_context:
                 try:
-                    titulos = get_all_course_titles()
                     contenidos = get_user_course_contents_by_email(email)
-                    st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
+                    st.session_state.moodle_context = contenidos
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
@@ -137,9 +136,9 @@ if st.session_state.messages[-1]["role"] != "assistant":
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres el Tutor IA de la CUN. Usa la siguiente información real extraída de Moodle "
-                    "para responder sobre cursos, recursos (PDF, SCORM, enlaces, libros, páginas, etc):\n\n"
-                    f"{st.session_state.moodle_context[:5000]}"
+                    "Eres el Tutor IA de la CUN. Usa esta información real extraída de Moodle para responder preguntas "
+                    "sobre cursos, materiales, recursos y contenido disponible:\n\n"
+                    f"{st.session_state.moodle_context[:4000]}"
                 )
             }
 
@@ -153,3 +152,4 @@ if st.session_state.messages[-1]["role"] != "assistant":
         st.markdown(f"<div class='chat-bubble assistant-bubble'>{final_response}</div>", unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         os.remove(audio_file)
+
