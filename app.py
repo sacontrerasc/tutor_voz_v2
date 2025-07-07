@@ -79,7 +79,7 @@ email_placeholder = st.text_input("Tu correo detectado es:", value=st.session_st
 st.image("https://i.imgur.com/h8qO5Rf.png", use_column_width=False, width=150)
 st.markdown("<h2 style='text-align: center; color: #1e40af;'>CUN</h2>", unsafe_allow_html=True)
 st.markdown(f"<div class='email-banner'>Tu correo detectado es: {st.session_state['email']}</div>", unsafe_allow_html=True)
-st.markdown('<img src="https://i.imgur.com/tLVo6Q7.png" width="130" class="avatar">', unsafe_allow_html=True)
+st.image("https://i.imgur.com/tLVo6Q7.png", width=130, class_='avatar')
 
 # Chat inicial
 st.markdown("<div class='bot chat-container'>Hola, soy tu tutor IA. ¿En qué puedo ayudarte?</div>", unsafe_allow_html=True)
