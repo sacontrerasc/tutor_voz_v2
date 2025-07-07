@@ -1,71 +1,162 @@
-import requests
+import streamlit as st
 import os
+from utils import get_answer, text_to_speech, autoplay_audio, speech_to_text
+from moodle_api import get_all_course_titles, get_user_course_contents_by_email
+from audio_recorder_streamlit import audio_recorder
+from streamlit_float import float_init
 
-# URL base de tu Moodle
-MOODLE_BASE_URL = "https://ctv.cun.edu.co"
-MOODLE_TOKEN = "d5e467b9e41ffd6aeb772e779bff8d36"
-MOODLE_URL = f"{MOODLE_BASE_URL}/webservice/rest/server.php"
+# Inicializar los elementos flotantes
+float_init()
 
-# Función para llamar funciones REST de Moodle
-def call_moodle_function(wsfunction, params):
-    all_params = {
-        "wstoken": MOODLE_TOKEN,
-        "moodlewsrestformat": "json",
-        "wsfunction": wsfunction,
+# Capturar el email desde los parámetros de la URL
+params = st.query_params
+email = params.get("email", [""])[0]
+
+# Estilo visual
+st.markdown("""
+    <style>
+    header {visibility: hidden;}
+    .chat-bubble {
+        padding: 14px 20px;
+        border-radius: 14px;
+        color: white;
+        font-family: "Segoe UI", sans-serif;
+        margin: 8px 0;
+        max-width: 80%;
+        word-wrap: break-word;
     }
-    all_params.update(params)
-    response = requests.get(MOODLE_URL, params=all_params)
-    response.raise_for_status()
-    return response.json()
+    .assistant-bubble {
+        background: linear-gradient(to right, #0089FF, #3435A1);
+        text-align: left;
+        margin-right: auto;
+        border-top-left-radius: 0;
+    }
+    .user-bubble {
+        background: linear-gradient(to right, #0D192E, #0A2332);
+        text-align: right;
+        margin-left: auto;
+        border-top-right-radius: 0;
+    }
+    .title-block {
+        text-align: center;
+        font-family: "Segoe UI", sans-serif;
+        margin-top: 10px;
+        margin-bottom: 0;
+    }
+    .title-block h1 {
+        margin: 0;
+        color: #0089FF;
+    }
+    div[data-testid="stAudioRecorder"] {
+        background-color: red !important;
+        border-radius: 50% !important;
+        padding: 12px !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    div[data-testid="stAudioRecorder"] button {
+        background: linear-gradient(135deg, #0089FF, #3435A1) !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 65px !important;
+        height: 65px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    div[data-testid="stAudioRecorder"] span {
+        display: none !important;
+    }
+    </style>
 
-# Obtener el ID de usuario desde su correo
-def get_user_id_by_email(email):
-    result = call_moodle_function("core_user_get_users", {
-        "criteria[0][key]": "email",
-        "criteria[0][value]": email
-    })
-    if "users" in result and result["users"]:
-        return result["users"][0]["id"]
-    else:
-        raise Exception(f"No se encontró usuario con el correo: {email}")
+    <div class='title-block'>
+        <h1>Tutor de Voz IA</h1>
+        <h1>CUN</h1>
+    </div>
+    <div style='text-align: center; margin-bottom: 20px;'>
+        <img src='https://i.ibb.co/43wVB5D/Cunia.png' width='140' alt='Logo CUN'/>
+    </div>
+""", unsafe_allow_html=True)
 
-# Obtener cursos en los que el usuario está matriculado
-def get_user_courses(user_id):
-    result = call_moodle_function("core_enrol_get_users_courses", {
-        "userid": user_id
-    })
-    return result
+# Estado de la sesión
+def initialize_session_state():
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hola, soy tu tutor IA. ¿En qué puedo ayudarte?"}
+        ]
+    if "moodle_context" not in st.session_state:
+        st.session_state.moodle_context = ""
 
-# Obtener solo los títulos de los cursos en los que está matriculado un usuario (por email)
-def get_enrolled_course_titles_by_email(email):
-    user_id = get_user_id_by_email(email)
-    courses = get_user_courses(user_id)
-    return "\n".join([f"- {c['fullname']}" for c in courses])
+initialize_session_state()
 
-# Obtener todos los títulos de todos los cursos del sistema
-def get_all_course_titles():
-    result = call_moodle_function("core_course_get_courses", {})
-    return "\n".join([f"- {c['fullname']}" for c in result])
+# Micrófono flotante
+footer_container = st.container()
+with footer_container:
+    audio_bytes = audio_recorder(text=None)
+footer_container.float("bottom: 0rem;")
 
-# Obtener contenidos por curso (si existen)
-def get_user_course_contents_by_email(email):
-    user_id = get_user_id_by_email(email)
-    courses = get_user_courses(user_id)
-    full_output = ""
-    for course in courses:
-        course_id = course["id"]
-        course_name = course["fullname"]
-        contents = call_moodle_function("core_course_get_contents", {
-            "courseid": course_id
-        })
-        if not contents:
-            continue
-        full_output += f"\n📘 {course_name}:\n"
-        for section in contents:
-            section_name = section.get("name", "Sin nombre")
-            modules = section.get("modules", [])
-            full_output += f"  ▪️ {section_name}:\n"
-            for module in modules:
-                modname = module.get("name", "Recurso sin nombre")
-                full_output += f"    - {modname}\n"
-    return full_output
+# Mostrar historial de mensajes
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        css_class = "assistant-bubble" if message["role"] == "assistant" else "user-bubble"
+        st.markdown(f"""
+            <div class="chat-bubble {css_class}">
+                {message["content"]}
+            </div>
+        """, unsafe_allow_html=True)
+
+# Procesar entrada de voz
+if audio_bytes:
+    with st.spinner("Transcribiendo..."):
+        webm_file_path = "temp_audio.mp3"
+        with open(webm_file_path, "wb") as f:
+            f.write(audio_bytes)
+        transcript = speech_to_text(webm_file_path)
+        os.remove(webm_file_path)
+
+    if transcript:
+        st.session_state.messages.append({"role": "user", "content": transcript})
+        with st.chat_message("user"):
+            st.markdown(f"""
+                <div class="chat-bubble user-bubble">
+                    {transcript}
+                </div>
+            """, unsafe_allow_html=True)
+
+# Procesar respuesta
+if st.session_state.messages[-1]["role"] != "assistant":
+    with st.chat_message("assistant"):
+        with st.spinner("Pensando..."):
+            if not st.session_state.moodle_context:
+                try:
+                    titulos = get_all_course_titles()
+                    contenidos = get_user_course_contents_by_email(email)
+                    st.session_state.moodle_context = f"{titulos}\n\n{contenidos}"
+                except Exception as e:
+                    st.session_state.moodle_context = f"No se pudo cargar contenido desde Moodle: {e}"
+
+            system_intro = {
+                "role": "system",
+                "content": (
+                    "Eres el Tutor IA de la CUN. Usa la siguiente información real extraída de Moodle "
+                    "para responder sobre cursos, recursos (PDF, SCORM, enlaces, libros, páginas, etc):\n\n"
+                    f"{st.session_state.moodle_context[:5000]}"
+                )
+            }
+
+            mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
+            final_response = get_answer(mensajes_ajustados)
+
+        with st.spinner("Generando respuesta en audio..."):
+            audio_file = text_to_speech(final_response)
+            autoplay_audio(audio_file)
+            os.remove(audio_file)
+
+        st.markdown(f"""
+            <div class="chat-bubble assistant-bubble">
+                {final_response}
+            </div>
+        """, unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": final_response})
