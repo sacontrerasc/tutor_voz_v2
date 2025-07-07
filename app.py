@@ -129,20 +129,23 @@ if st.session_state.messages[-1]["role"] != "assistant":
                 except Exception as e:
                     st.session_state.moodle_context = f"No se pudo cargar el contenido desde Moodle: {e}"
 
-            # 👇 Aquí el bloque que pediste para ver qué se está usando como contexto
             print("==== CONTEXTO USADO ====")
             print(st.session_state.moodle_context[:500])
 
             system_intro = {
                 "role": "system",
                 "content": (
-                    "Eres el Tutor IA de la CUN. Usa la siguiente información real extraída de Moodle "
-                    "para responder sobre cursos, recursos (PDF, SCORM, enlaces, libros, páginas, etc):\n\n"
+                    "Eres el Tutor IA de la CUN. Usa exclusivamente la siguiente información real extraída desde Moodle "
+                    "para responder preguntas sobre cursos matriculados, recursos como PDFs, SCORM, libros, enlaces, etc. "
+                    "Si la respuesta no está en la información que recibiste, responde 'No tengo esa información'.\n\n"
                     f"{st.session_state.moodle_context[:5000]}"
                 )
             }
 
-            mensajes_ajustados = [system_intro] + st.session_state.messages[-6:]
+            ejemplo_usuario = {"role": "user", "content": "¿Qué curso tengo matriculado?"}
+            ejemplo_respuesta = {"role": "assistant", "content": "- Fundamentos de IA\n- ChatGPT y Asistentes Virtuales"}
+
+            mensajes_ajustados = [system_intro, ejemplo_usuario, ejemplo_respuesta] + st.session_state.messages[-6:]
             final_response = get_answer(mensajes_ajustados)
 
         with st.spinner("Generando respuesta en audio..."):
